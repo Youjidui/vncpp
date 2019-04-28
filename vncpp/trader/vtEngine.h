@@ -29,3 +29,6 @@ class MainEngine
 
 };
 
+typedef std::shared_ptr<MainEngine> MainEnginePtr;
+
+extern MainEnginePtr main_engine(EventEnginePtr p);
