@@ -5,9 +5,9 @@
 #include "eventEngine.h"
 #include "vtEngine.h"
 
-void on_error(Event e)
+void on_error(uint32_t code, std::string const& text)
 {
-	printf("error: %d, %s", e.code, e.text());
+	LOG_ERROR << code << text;
 }
 
 
@@ -21,9 +21,9 @@ void run_child_process()
 	LOG_INFO << ("start event engine");
 
 	auto me = main_engine(ee);
-	auto gw = ctp_gateway();
+	auto gw = ctp_gateway(ee);
 	me->add_gateway(gw);
-	auto stg = cta_strategy();
+	auto stg = cta_strategy(ee);
 	me->add_app(stg);
 	LOG_INFO << ("start main engine");
 

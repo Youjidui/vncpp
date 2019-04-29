@@ -4,43 +4,14 @@
 #include <map>
 #include <vector>
 #include <thread>
+#include <atomic>
 #include <boost/asio.hpp>
-//#include <boost/tuple.hpp>
-
-enum event_type
-{
-	ENT_TIMER
-};
-
-class EventData
-{
-public:
-	virtual ~EventData() {}
-};
-
-typedef std::shared_ptr<EventData> EventDataPtr;
-
-class Event
-{
-	public:
-	enum event_type m_type;
-	EventDataPtr m_dict;
-
-	public:
-	Event(enum event_type type, const EventDataPtr& args)
-		: m_type(type),
-		m_dict(std::move(args))
-	{
-	}
-	Event(enum event_type type, EventDataPtr&& args)
-		: m_type(type),
-		m_dict(std::move(args))
-	{
-	}
-};
+#include <tuple>
+#include "eventData.h"
 
 
-typedef std::function<void (Event)> DataHandler;
+
+typedef std::function<void (Event)> EventHandler;
 typedef std::function<void ()> CompleteHandler;
 typedef std::function<void (uint32_t, std::string const&)> ErrorHandler;
 
@@ -79,12 +50,13 @@ class EventLoop
 
 };
 
+
 class EventHandlerRegistry
 {
 	protected:
 	typedef std::vector<EventHandler> EventHandlerVector;
         EventHandlerVector	m_handlers;
-	std::map<uint32_t, EventHandlerVector> m_handlerMap;
+	std::map<enum event_type, EventHandlerVector> m_handlerMap;
 
 	public:
 	void register(enum event_type e, EventHandler h)
@@ -119,14 +91,6 @@ class EventHandlerRegistry
 		}
 	}
 
-	uint32_t subscribe(EventHandler dh, CompleteHandler ch, ErrorHandler eh)
-	{
-	}
-
-	void unsubscribe(uint32_t id)
-	{
-	}
-
 	protected:
 	void onEvent(Event e)
 	{
@@ -143,6 +107,62 @@ class EventHandlerRegistry
 
 };
 
+
+class Observable
+{
+	protected:
+	typedef uint32_t subscription_id;
+	typedef std::tuple<EventHandler, CompleteHandler, ErrorHandler> observer;
+	typedef std::map<subscription_id, observer> ObserverMap;
+	typedef std::vector<observer> ObserverVector;
+	ObserverMap m_observerMap;
+	std::atomic<subscription_id> m_next_new_id;
+
+	public:
+	Observable() : m_next_new_id(0)
+	{}
+	
+	uint32_t subscribe(EventHandler dh, CompleteHandler ch, ErrorHandler eh)
+	{
+		auto i = ++m_next_new_id;
+		m_observerMap[i] = std::make_tuple(dh, ch, eh);
+		return i;
+	}
+
+	void unsubscribe(uint32_t id)
+	{
+		m_observerMap.erase(i);
+	}
+
+	protected:
+	void onData(Event e)
+	{
+		for(auto i : m_observerMap)
+		{
+			std::get<0>(i.second)(e);
+		}
+	}
+
+	void onComplete()
+	{
+		for(auto i : m_observerMap)
+		{
+			std::get<1>(i.second)();
+		}
+	}
+
+	void onError(uint32_t code, std::string const& text)
+	{
+		for(auto i : m_observerMap)
+		{
+			std::get<2>(i.second)(code, text);
+		}
+	}
+
+};
+
+
+
 class EventEngine : public EventLoop, public EventHandlerRegistry
 {
 	protected:
@@ -152,11 +172,36 @@ class EventEngine : public EventLoop, public EventHandlerRegistry
 		post(std::bind(&EventHandlerRegistry::onEvent, this, e));
 	}
 
+
+class EventEngineRx : public Observable
+{
+	protected:
+	std::shared_ptr<EventLoop> m_eventLoop;
 	
+	public:
+	EventEngineRx(std::shared_ptr<EventLoop> l)
+	: m_eventLoop(l)
+	{ }
+	
+	public:
+	void data(Event e)
+	{
+		m_eventLoop->post(std::bind(&Observable::onData, this, e));
+	}
+
+	void error(uint32_t code, std::string const& text)
+	{
+		m_eventLoop->post(std::bind(&Observable::onError, this, code, text));
+	}
+
+	void complete()
+	{
+		m_eventLoop->post(std::bind(&Observable::onComplete, this));
+	}
 };
 
 
-typedef std::shared_ptr<EventEngine> EventEnginePtr;
+typedef std::shared_ptr<EventEngineRx> EventEnginePtr;
 extern EventEnginePtr event_engine();
 
 
