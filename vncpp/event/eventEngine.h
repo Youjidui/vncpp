@@ -171,6 +171,7 @@ class EventEngine : public EventLoop, public EventHandlerRegistry
 	{
 		post(std::bind(&EventHandlerRegistry::onEvent, this, e));
 	}
+};
 
 
 class EventEngineRx : public Observable

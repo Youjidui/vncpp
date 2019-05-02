@@ -4,6 +4,7 @@
 #include <logging.h>
 #include "eventEngine.h"
 #include "vtEngine.h"
+#include "ctp/ctpGateway.h"
 
 void on_error(uint32_t code, std::string const& text)
 {
@@ -22,9 +23,9 @@ void run_child_process()
 
 	auto me = main_engine(ee);
 	auto gw = ctp_gateway(ee);
-	me->add_gateway(gw);
+	me->addGateway(gw);
 	auto stg = cta_strategy(ee);
-	me->add_app(stg);
+	me->addApp(stg);
 	LOG_INFO << ("start main engine");
 
 	gw->subscribe(std::bind(MainEngine::on_message, me),

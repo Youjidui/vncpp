@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <memory>
 #include <map>
+#include "eventEngine.h"
 
 class MainEngine
 {
@@ -26,9 +27,10 @@ class MainEngine
 		m_apps[app->getName()] = app;
 	}
 
-
 };
 
 typedef std::shared_ptr<MainEngine> MainEnginePtr;
 
 extern MainEnginePtr main_engine(EventEnginePtr p);
+
+

@@ -15,4 +15,6 @@ class gateway
 	virtual ~gateway() {}
 };
 
+typedef std::shared_ptr<gateway> GatewayPtr;
+
 
