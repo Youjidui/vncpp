@@ -6,8 +6,103 @@
 #include <thread>
 #include <atomic>
 #include <boost/asio.hpp>
-#include <tuple>
-#include "eventData.h"
+//#include <tuple>
+
+enum event_type
+{
+	//ENT_ERROR,
+	EVENT_TIMER,
+	EVENT_TICK,
+	EVENT_ORDER,
+	EVENT_TRADE,
+	EVENT_CTA_LOG
+};
+
+class EventData
+{
+public:
+	virtual ~EventData() {}
+};
+
+typedef std::shared_ptr<EventData> EventDataPtr;
+
+class Event
+{
+	public:
+	enum event_type type;
+	EventDataPtr dict;
+
+	public:
+	Event(enum event_type type1, const EventDataPtr& args)
+		: type(type1),
+		dict(std::move(args))
+	{
+	}
+	Event(enum event_type type1, EventDataPtr&& args)
+		: type(type1),
+		dict(std::move(args))
+	{
+	}
+};
+
+//Should be as normal log line to LOG module with different log level?
+class LogData : public EventData
+{
+	public:
+	std::string moduleName;
+	std::string logContent;
+	
+	LogData(std::string&& aModuleName, std::string&& aLogContent)
+	: moduleName(aModuleName), logContent(aLogContent)
+	{}
+	LogData(std::string const& aModuleName, std::string const& aLogContent)
+	: moduleName(aModuleName), logContent(aLogContent)
+	{}
+};
+
+
+inline 
+Event makeLogEvent(std::string&& aModuleName, std::string&& aLogContent)
+{
+	auto data = std::make_shared<LogData>(aModuleName, aLogContent);
+	return Event(EVENT_CTA_LOG, data);
+}
+
+/*
+class ErrorData : public EventData
+{
+	public:
+	int m_code;
+	std::string m_text;
+	
+	ErrorData(int code, std::string const& text)
+	: m_code(code), m_text(text)
+	{	}
+	ErrorData(int code, std::string&& text)
+	: m_code(code), m_text(std::move(text))
+	{	}
+}
+
+inline
+Event make_error_event(int code, std::string const& text)
+{
+	return Event (ENT_ERROR, std::make_shared<ErrorData>(code, text));
+}
+
+inline
+bool extract_error_event(Event const& e, int& code, std::string& text)
+{
+	if(ENT_ERROR == e.m_type)
+	{
+		auto p = std::dynamic_pointer_cast<ErrorData>(e.m_dict);
+		code = p->m_code;
+		text = p->m_text;
+		return true;
+	}
+	return false;
+}
+*/
+
 
 
 
@@ -163,7 +258,7 @@ class Observable
 
 
 
-class EventEngine : public EventLoop, public EventHandlerRegistry
+class EventEngineEv : public EventLoop, public EventHandlerRegistry
 {
 	protected:
 	public:
@@ -199,10 +294,16 @@ class EventEngineRx : public Observable
 	{
 		m_eventLoop->post(std::bind(&Observable::onComplete, this));
 	}
+	
+	template<typename FUNCTION>
+	void post(FUNCTION&& f)
+	{
+		m_eventLoop->post(f);
+	}
 };
 
-
-typedef std::shared_ptr<EventEngineRx> EventEnginePtr;
+typedef EventEngineEv EventEngine;
+typedef std::shared_ptr<EventEngine> EventEnginePtr;
 extern EventEnginePtr event_engine();
 
 

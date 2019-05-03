@@ -2,5 +2,5 @@
 
 EventEnginePtr event_engine()
 {
-	return std::make_shared<EventEngineRx>();
+	return std::make_shared<EventEngine>();
 }

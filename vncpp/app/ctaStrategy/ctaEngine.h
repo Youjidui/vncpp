@@ -25,6 +25,9 @@ typedef std::shared_ptr<Strategy> StrategyPtr;
 
 class CtaEngine
 {
+	protected:
+		EventEnginePtr m_ee;
+
 	public:
 		typedef std::string Symbol;
 		std::map<Symbol, StopOrderPtr> m_workingStopOrderDict;
@@ -38,6 +41,9 @@ class CtaEngine
 		std::map<OrderID, StrategyPtr> m_orderStrategyDict;
 
 	public:
+		CtaEngine(EventEnginePtr ee) : m_ee(ee) {}
+
+	protected:
 	//return a list of order ID
 		const std::vector<uint32_t> sendOrder(std::sting const& vtSymbol, int orderType, double price, int volume, uint32_t strategy)
 	{
@@ -116,7 +122,7 @@ class CtaEngine
 			auto& sl = i->second;
 			for(auto i : sl)
 			{
-				m_ee->emit(std::bind(Strategy::onTick, i, tick));
+				m_ee->post(std::bind(Strategy::onTick, i, tick));
 			}
 		}
 	}
@@ -136,7 +142,7 @@ class CtaEngine
 					i->second.erase(vtOrderID);
 				}
 			}
-			m_ee->emit(std::bind(Strategy::onOrder, it->second, order));
+			m_ee->post(std::bind(Strategy::onOrder, it->second, order));
 		}
 
 	}
@@ -158,9 +164,42 @@ class CtaEngine
 				q = -q;
 			s->pos += trade->volume;
 
-			m_ee->emit(std::bind(Strategy::onTrade, s, trade));
+			m_ee->post(std::bind(Strategy::onTrade, s, trade));
 		}
 	}
-}
+
+	public:
+
+	void registerEvent()
+	{
+		m_ee->register(EVENT_TICK, std::bind(&CtaEngine::processTickEvent, this, std::placeholders::_1));
+		m_ee->register(EVENT_ORDER, std::bind(&CtaEngine::processOrderEvent, this, std::placeholders::_1));
+		m_ee->register(EVENT_TRADE, std::bind(&CtaEngine::processTradeEvent, this, std::placeholders::_1));
+	}
+
+	void insertData() 
+	{
+	}
+
+	void loadBar()
+	{
+	}
+
+	void loadTick()
+	{
+	}
+
+	void writeCtaLog(std::string&& logContent)
+	{
+		auto e = makeLogEvent("CTA_STRATEGY", logContent);
+		m_ee->emit(e);
+	}
+
+	void loadStrategy(const std::string& aStrategyName, const std::string& aModuleName)
+	{
+
+	}
+
+};
 
 
