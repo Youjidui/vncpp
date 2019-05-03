@@ -7,7 +7,8 @@
 enum event_type
 {
 	//ENT_ERROR,
-	ENT_TIMER
+	ENT_TIMER,
+	ENT_MESSAGE
 };
 
 class EventData
@@ -21,18 +22,18 @@ typedef std::shared_ptr<EventData> EventDataPtr;
 class Event
 {
 	public:
-	enum event_type m_type;
-	EventDataPtr m_dict;
+	enum event_type type;
+	EventDataPtr dict;
 
 	public:
-	Event(enum event_type type, const EventDataPtr& args)
-		: m_type(type),
-		m_dict(std::move(args))
+	Event(enum event_type type1, const EventDataPtr& args)
+		: type(type1),
+		dict(std::move(args))
 	{
 	}
-	Event(enum event_type type, EventDataPtr&& args)
-		: m_type(type),
-		m_dict(std::move(args))
+	Event(enum event_type type1, EventDataPtr&& args)
+		: type(type1),
+		dict(std::move(args))
 	{
 	}
 };
