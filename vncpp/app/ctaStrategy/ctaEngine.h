@@ -7,66 +7,11 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <iostream>
-#ifdef __linux__
-#include <dlfcn.h>
-#elif defined(__WINDOWS)
-#include <Windows.h>
-#endif
-#include "log.h"
+#include "logging.h"
 #include "eventEngine.h"
+#include "ctaTemplate.h"
 
 
-class StopOrder
-{
-	public:
-	std::string vtSymbol;
-
-};
-
-typedef std::shared_ptr<StopOrder> StopOrderPtr;
-
-
-
-typedef boost::variant<bool, int, double, std::string> ParameterValue;
-
-class Strategy
-{
-	public:
-	const std::string name;		//the instance name (with different symbol)
-	const std::string className;
-	const std::string vtSymbol;
-
-	//strategy parameters
-	//std::string m_settingfilePath;
-	boost::property_tree::ptree parameters;
-
-	public:
-	virtual bool init() =0;
-	virtual void onInit() =0;
-	virtual bool start() =0;
-	virtual void onStart() =0;
-	virtual void stop() =0;
-	virtual void onStop() =0;
-
-};
-
-//the strategy implementation has to implement and export those function for CtaEngine
-typedef Strategy* (*FUNCTION_createStrategyInstance)(const char* aStrategyClassName, void* aHost_Reserved);
-typedef void (*FUNCTION_destroyStrategyInstance)(Strategy* aStrategyInstance);
-
-typedef void (*FUNCTION_strategyDeleter)(Strategy* aStrategyInstance, void* aHost);
-
-//for the built-in strategy created by C++ keyword new
-inline 
-void staticLibraryDestroyStrategyInstance(Strategy* p, void* aHost = NULL)
-{
-	delete p;
-}
-
-//for the strategy created by FUNCTION_createStrategyInstance from DLL
-void dynamicLibraryDestroyStrategyInstance(Strategy* p, void* aHost);
-
-typedef std::shared_ptr<Strategy, FUNCTION_strategyDeleter> StrategyPtr;
 
 class CtaEngine
 {
@@ -91,71 +36,77 @@ class CtaEngine
 		CtaEngine(EventEnginePtr ee) : m_ee(ee) {}
 
 	protected:
-	//return a list of order ID
-		const std::vector<uint32_t> sendOrder(std::sting const& vtSymbol, int orderType, double price, int volume, uint32_t strategy)
+	OrderID sendOrder(std::sting const& vtSymbol, int orderType, double price, int volume, StrategyPtr strategy)
 	{
 	}
 
-		void cancelOrder(std::vector<uint32_t> const& vOrderID)
-		{
-		}
+	void cancelOrder(OrderID const& vOrderID)
+	{
+	}
 
-		const std::vector<uint32_t> sendStopOrder(std::string const& vtSymbol， int orderType, double price, double stopPrice, int volume, uint32_t strategy)
-		{
-		}
+	OrderID sendStopOrder(std::string const& vtSymbol， int orderType, double price, double stopPrice, int volume, StrategyPtr strategy)
+	{
+	}
 
-		void cancelStopOrder(std::vector<uint32_t> const& vOrderID)
-		{
-			cancelOrder(vOrderID);
-		}
+	void cancelStopOrder(StopOrderID const& vOrderID)
+	{
+		cancelOrder(vOrderID);
+	}
 
-		void processStopOrder(TickPtr& tick)
+	void cancelAll(const std::string& aStrategyInstanceName)
+	{
+		auto i = m_strategyOrderDict.find(aStrategyInstanceName);
+		if(i != m_strategyOrderDict.end())
+		{}
+	}
+
+	void processStopOrder(TickPtr& tick)
+	{
+		auto& vtSymbol = tick->vtSymbol;
+		auto it = m_tickStrategyDict.find(vtSymbol);
+		if(it != m_tickStrategyDict.cend())
 		{
-			auto& vtSymbol = tick->vtSymbol;
-			auto it = m_tickStrategyDict.find(vtSymbol);
-			if(it != m_tickStrategyDict.cend())
+			for(auto i = m_workingStopOrderDict.begin(); i != m_workingStopOrderDict.end(); )
 			{
-				for(auto i = m_workingStopOrderDict.begin(); i != m_workingStopOrderDict.end(); )
+				auto& so = i->second;
+				if(so->vtSymbol == vtSymbol)
 				{
-					auto& so = i->second;
-					if(so->vtSymbol == vtSymbol)
+					auto longSO = so->direction == DIRECTION_LONG;
+					auto shortSO = so->direction == DIRECTION_SHORT; 
+					auto longTrigged = longSO && tick->lastPrice >= so->stopPrice;
+					auto shortTrigged = shortSO && tick->lastPrice <= so->stopPrice;
+
+					if(longTrigged || shortTrigged)
 					{
-						auto longSO = so->direction == DIRECTION_LONG;
-						auto shortSO = so->direction == DIRECTION_SHORT; 
-						auto longTrigged = longSO && tick->lastPrice >= so->stopPrice;
-						auto shortTrigged = shortSO && tick->lastPrice <= so->stopPrice;
-
-						if(longTrigged || shortTrigged)
+						if(longSO)
 						{
-							if(longSO)
-							{
-							}
-							else
-							{
-							}
-							
-							auto vOrderID = sendOrder(so->vtSymbol, so->orderType, so->price, so->volume, so->strategy);
-							if(!vOrderID.empty())
-							{
-								i = m_workingStopOrderDict.erase(i);
+						}
+						else
+						{
+						}
+						
+						auto vOrderID = sendOrder(so->vtSymbol, so->orderType, so->price, so->volume, so->strategy);
+						if(!vOrderID.empty())
+						{
+							i = m_workingStopOrderDict.erase(i);
 
-								auto s = m_strategyOrderDict.find(so->strategy->name);
-								if(s != m_strategyOrderDict.end())
-								{
-									s->second.erase(so->stopOrderID);
-								}
-								so->status = STOPORDER_TRIGGERED;
-								so->strategy->onStopOrder(so);
-							}
-							else 
+							auto s = m_strategyOrderDict.find(so->strategy->name);
+							if(s != m_strategyOrderDict.end())
 							{
-								++i;
+								s->second.erase(so->stopOrderID);
 							}
+							so->status = STOPORDER_TRIGGERED;
+							so->strategy->onStopOrder(so);
+						}
+						else 
+						{
+							++i;
 						}
 					}
 				}
 			}
 		}
+	}
 
 	void processTickEvent(Event e)
 	{
@@ -371,97 +322,14 @@ class CtaEngine
 
 	}
 
-};
-
-
-class StrategyLoaderForDynamicLibrary
-{
-	protected:
-	typedef std::string StrategyClassName;
-	typedef std::string ModuleName;
-	typedef void* ModuleHandle;
-	std::map<StrategyClassName, ModuleHandle> m_dllHandleDict;
-
-	friend void dynamicLibraryDestroyStrategyInstance(Strategy* p, void* aHost);
-
-	protected:
-	//there may be more than a strategy in a DLL, using the strategy name to identity each other
-	Strategy* loadStrategy(const std::string& aStrategyClassName, const std::string& aModuleName)
+	double getPriceTick(const std::string& vtSymbol)
 	{
-		Strategy* r = nullptr;
-		#ifdef __linux__
-		void* handle = dlopen(aModuleName.c_str(), RTLD_NOW);
-		#elif defined(__WINDOWNS)
-		void* handle = LoadLibrary(aModuleName.c_str());
-		#endif
-
-		if(handle)
+		auto c = m_mainEngine->getContract(vtSymbol);
+		if(c)
 		{
-			FUNCTION_createStrategyInstance createfn = (FUNCTION_createStrategyInstance)
-			#ifdef __linux__
-			dlsym
-			#elif defined(__WINDOWS)
-			GetProcAddress 
-			#endif
-			(handle, "createStrategyInstance");
-			if(createfn)
-				r = (Strategy*)createfn(aStrategyClassName.c_str(), NULL);
-			if(r)
-			{
-				//should do this???
-				if(r->className != aStrategyClassName)
-					r->className = aStrategyClassName;
-				//to free the module
-				m_dllHandleDict.insert(std::make_pair(r->className, handle));
-			}
+			return c->priceTick;
 		}
-		return r;
-	}
-
-	void freeStrategy(Strategy* s)
-	{
-		if(s)
-		{
-			auto it = m_dllHandleDict.find(s->className);
-			if(it != m_dllHandleDict.end())
-			{
-				FUNCTION_destroyStrategyInstance destryFn = (FUNCTION_destroyStrategyInstance)
-				#ifdef __linux__
-				dlsym
-				#elif defined(__WINDOWS)
-				GetProcAddress 
-				#endif
-				(handle, "destroyStrategyInstance");
-				if(destroyFn)
-					destroyFn(s);
-
-				#ifdef __linux__
-				dlclose(it->second);
-				#elif defined(__WINDOWS)
-				FreeLibrary(it->second);
-				#endif
-			}
-
-		}
-	}
-
-	public:
-	StrategyPtr load(const std::string& aStrategyClassName, const std::string& aModuleName)
-	{
-		auto p = loadStrategy(aStrategyName, aModuleName);
-		if(p)
-			return StrategyPtr(p, &dynamicLibraryDestroyStrategyInstance);
-		else
-			throw std::runtime_error("null pointer. load strategy failed");
+		return 0;
 	}
 };
 
-inline
-void dynamicLibraryDestroyStrategyInstance(Strategy* p, void* aHost)
-{
-	auto h = (StrategyLoaderForDynamicLibrary*)aHost;
-	if(h)
-	{
-		h->freeStrategy(s);
-	}
-}
