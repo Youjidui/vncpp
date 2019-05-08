@@ -394,6 +394,131 @@ public:
             }
         }
     }
+
+    OrderID sendOrder(const std::string& vtSymbol, int orderType, double price, int volume, StrategyPtr s)
+    {
+        char str[20];
+        sprintf(str,"%x",++limitOrderCount);
+        auto no = std::make_shared<Order>();
+        no->orderID = str;
+        no->vtOrderID = str;
+        no->vtSymbol = vtSymbol;
+        no->price = roundToPriceTick(price);
+        no->totalVolume = volume;
+        no->status = STATUS_NEW;
+        no->dt = m_dt;
+
+        if orderType == CTAORDER_BUY:
+            no->direction = DIRECTION_LONG
+            no->offset = OFFSET_OPEN
+        else if orderType == CTAORDER_SELL:
+            no->direction = DIRECTION_SHORT
+            no->offset = OFFSET_CLOSE
+        else if orderType == CTAORDER_SHORT:
+            no->direction = DIRECTION_SHORT
+            no->offset = OFFSET_OPEN
+        else if orderType == CTAORDER_COVER:
+            no->direction = DIRECTION_LONG
+            no->offset = OFFSET_CLOSE     
+
+
+        limitOrderDict[str] = no;
+        workingLimitOrderDict[str] = no
+        return str;
+    }
+
+    void cancelOrder(const std::string& orderID)
+    {
+        auto i = workingLimitOrderDict.find(orderID);
+        if(i != workingLimitOrderDict.end())
+        {
+            auto& o = i->second;
+            o->status = STATUS_CANCELLED;
+            
+            strategy->onOrder(o);
+            workingLimitOrderDict.erase(i);
+        }
+    }
+
+    StopOrderID sendStopOrder(const std::string& vtSymbol, int orderType, double price, int volume, StrategyPtr s)
+    {
+        char str[20];
+        sprintf(str,"%s%x", STOPORDERPREFIX, ++stopOrderCount);
+        auto so = std::make_shared<StopOrder>();
+        so->vtSymbol = vtSymbol;
+        so->price = roundToPriceTick(price);
+        so->volume = volume;
+        so->strategy = s;
+        so->status = STOPORDER_WAITING;
+        so->stopOrderID = str;
+
+        if orderType == CTAORDER_BUY:
+            so->direction = DIRECTION_LONG
+            so->offset = OFFSET_OPEN
+        else if orderType == CTAORDER_SELL:
+            so->direction = DIRECTION_SHORT
+            so->offset = OFFSET_CLOSE
+        else if orderType == CTAORDER_SHORT:
+            so->direction = DIRECTION_SHORT
+            so->offset = OFFSET_OPEN
+        else if orderType == CTAORDER_COVER:
+            so->direction = DIRECTION_LONG
+            so->offset = OFFSET_CLOSE
+
+        stopOrderDict[str] = so;
+        workingStopOrderDict[str] = so;
+
+        strategy->onStopOrder(so);
+        return str;
+    }
+
+    void cancelStopOrder(const std::string& stopOrderID)
+    {
+        auto i = workingStopOrderDict.find(stopOrderID);
+        if(i != workingStopOrderDict.end())
+        {
+            auto& so = i->second;
+            so->status = STOPORDER_CANCELLED
+            strategy->onStopOrder(so);
+            workingStopOrderDict.erase(i);
+        }
+    }
+
+    void putStrategyEvent()
+    {}
+
+    void insertData(const std::string& dbName, const std::string& collectionName, void* data, int len)
+    {}
+
+    std::vector<BarPtr>& loadBar(const std::string& dbName, const std::string& collectionName, const std::string& startDate)
+    {
+        return initData;
+    }
+
+    std::vector<TickPtr>& loadTick(const std::string& dbName, const std::string& collectionName, const std::string& startDate)
+    {
+        return initData;
+    }
+
+    void cancelAll()
+    {
+        for(auto i : workingLimitOrderDict)
+        {
+            cancelOrder(i.first);
+        }
+        for(auto i : workingStopOrderDict)
+        {
+            cancelStopOrder(i.first);
+        }
+    }
+
+    void saveSyncData(StrategyPtr)
+    {}
+
+    double getPriceTick(StrategyPtr)
+    {
+        return priceTick;
+    }
 };
 
 
