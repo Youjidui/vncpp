@@ -17,6 +17,38 @@ typedef OrderID StopOrderID;
 
 class Strategy;
 
+
+class Order
+{
+    public:
+    std::string orderID;        //exchange
+    std::string vtOrderID;      //vncpp
+    std::string symbol;         //exchange
+    std::string vtSymbol;       //vncpp
+    int direction;
+    int offset;
+    double price;
+    int totalVolume;
+    int tradedVolume;
+    int status;
+    time_t dt;
+};
+
+class Trade
+{
+    public:
+    std::string tradeID;        //exchange
+    std::string vtTradeID;      //vncpp 
+    std::string vtSymbol;       //vncpp
+    std::string orderID;
+    int direction;
+    int offset;
+    double price;
+    int volume;
+    time_t dt;
+
+};
+
 class StopOrder
 {
 	public:

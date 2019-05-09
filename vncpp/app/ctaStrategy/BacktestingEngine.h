@@ -16,6 +16,34 @@ double roundToPriceTick(double price, double priceTick)
 }
 
 
+class TradingResult
+{
+    public:
+    double entryPrice;
+    double exitPrice;
+    time_t entryDt;
+    time_t exitDt;
+    int volume;     //position +/-
+    double turnover;
+    double commission;
+    double slippage;
+    double pnl;
+
+    TradingResult(double entryPx, time_t entryDt, double exitPx, time_t exitDt,
+    int volume, double rate, double slippage, double size)
+    : this->entryPrice(entryPx)
+    , this->exitPrice(exitPx)
+    , this->entryDt(entryDt)
+    , this->exitDt(exitDt)
+    , this->volume(volume)
+    , this->turnover((entryPx + exitPx)*size*abs(volume))
+    , this->commission(this->turnover*rate)
+    , this->slippage(slippage*2*size*abs(volume))
+    , this->pnl((exitPx - entryPx)*volume*size - this->commission - this->slippage)
+    {}
+}
+
+
 class BacktestingEngine
 {
     /*
@@ -518,6 +546,142 @@ public:
     double getPriceTick(StrategyPtr)
     {
         return priceTick;
+    }
+
+    void calculateBacktestingResult()
+    {
+        std::vector<TradingResult> resultList;
+        std::list<Trade> longTrade;
+        std::list<Trade> shortTrade;
+        std::vector<time_t> tradeTimeList;
+        std::vector<int> posList;
+
+        for(auto i : tradeDict)
+        {
+            auto t = *(i.second);
+            if(t->direction == DIRECTION_LONG)
+            {
+                if(shortTrade.empty())
+                {
+                    longTrade.push_back(t);
+                }
+                else
+                {
+                    while(true)
+                    {
+                        auto& entryTrade = shortTrade.front();
+                        auto& exitTrade = t;
+
+                        auto closedVolume = std::min(exitTrade.volume, entryTrade.volume);
+                        auto result = TradingResult(entryTrade.price, entryTrade.dt,
+                        exitTrade.price, exitTrade.dt, -closedVolume,
+                        rate, slippage, size);
+                        resultList.push_back(result);
+
+                        posList.push_back(-1);
+                        posList.push_back(0);
+
+                        tradeTimeList.push_back(result.entryDt);
+                        tradeTimeList.push_back(result.exitDt);
+
+                        entryTrade.volume -= closedVolume;
+                        exitTrade.volume -= closedVolume;
+
+                        if(0 == entryTrade.volume)
+                        {
+                            shortTrade.pop_front();
+                        }
+                        if(0 == exitTrade.volume)
+                        {
+                            break;
+                        }
+
+                        if(exitTrade.volume > 0)
+                        {
+                            if(shortTrade.empty())
+                            {
+                                longTrade.push_back(exitTrade);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if(longTrade.empty())
+                {
+                    shortTrade.push_back(t);
+                }
+                else
+                {
+                    while(true)
+                    {
+                        auto& entryTrade = longTrade.front();
+                        auto& exitTrade = t;
+
+                        auto closedVolume = std::min(exitTrade.volume, entryTrade.volume);
+                        auto result = TradingResult(entryTrade.price, entryTrade.dt,
+                        exitTrade.price, exitTrade.dt, closedVolume,
+                        rate, slippage, size);
+                        resultList.push_back(result);
+
+                        posList.push_back(1);
+                        posList.push_back(0);
+
+                        tradeTimeList.push_back(result.entryDt);
+                        tradeTimeList.push_back(result.exitDt);
+
+                        entryTrade.volume -= closedVolume;
+                        exitTrade.volume -= closedVolume;
+
+                        if(0 == entryTrade.volume)
+                        {
+                            longTrade.pop_front();
+                        }
+                        if(0 == exitTrade.volume)
+                        {
+                            break;
+                        }
+
+                        if(exitTrade.volume > 0)
+                        {
+                            if(longTrade.empty())
+                            {
+                                shortTrade.push_back(exitTrade);
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+            }
+            
+        }
+
+        double endPrice = 0;
+        if(mode == BAR_MODE)
+            endPrice = bar->close;
+        else
+        {
+            endPrice = tick->lastPrice;
+        }
+
+        for(auto i : longTrade)
+        {
+            auto& t = *(i.second);
+            result = TradingResult(t.price, t.dt, endPrice, m_dt,
+            t.volume, rate, slippage, size);
+            resultList.push_back(result);
+        }
+
+        for(auto i : shortTrade)
+        {
+            auto& t = *(i.second);
+            result = TradingResult(t.price, t.dt, endPrice, m_dt,
+            -t.volume, rate, slippage, size);
+            resultList.push_back(result);
+        }
     }
 };
 
