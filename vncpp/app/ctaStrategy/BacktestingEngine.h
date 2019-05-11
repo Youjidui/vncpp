@@ -44,6 +44,61 @@ class TradingResult
 }
 
 
+class BackTestingResult
+{
+    public:
+    double capital;
+    double maxCapital;
+    double drawdown;
+
+    int totalResult;
+    double totalTurnover;
+    double totalCommission;
+    double totalSlippage;
+
+    std::vector<time_t> timeList;
+    std::vector<double> pnlList;
+    std::vector<double> capitalList;
+    std::vector<double> drawdownList;
+
+    int winningResult;
+    int losingResult;
+    double totalWinning;
+    double totalLosing;
+
+    double winningRate;
+    double averageWinning;
+    double averageLosing;
+    double profitLossRatio;
+
+    std::vector<int> posList;
+    std::vector<time_t> tradeTimeList;
+    std::vector<TradingResult> resultList;
+
+    public:
+    BackTestingResult()
+    {
+        capital = 0;
+        maxCapital = 0;
+        drawdown = 0;
+        totalResult = 0;
+        totalTurnover = 0;
+        totalCommission = 0;
+        totalSlippage = 0;
+
+        winningResult = 0;
+        losingResult = 0;
+        totalWinning = 0;
+        totalLosing = 0;
+
+        winningRate = 0;
+        averageWinning = 0;
+        averageLosing = 0;
+        profitLossRatio = 0;
+    }
+};
+
+
 class BacktestingEngine
 {
     /*
@@ -548,7 +603,7 @@ public:
         return priceTick;
     }
 
-    void calculateBacktestingResult()
+    BackTestingResult calculateBacktestingResult()
     {
         std::vector<TradingResult> resultList;
         std::list<Trade> longTrade;
@@ -682,6 +737,74 @@ public:
             -t.volume, rate, slippage, size);
             resultList.push_back(result);
         }
+
+        BackTestingResult r;
+        if(resultList.empty())
+        {
+
+        }
+        else
+        {
+            for(auto i : resultList)
+            {
+                r.capital += i.pnl;
+                r.maxCapital = std::max(r.capital, r.maxCapital);
+                r.drawdown = r.capital + r.maxCapital;
+
+                r.pnlList.push_back(i.pnl);
+                r.timeList.push_back(i.exitDt);
+                r.capitalList.push_back(r.capital);
+                r.drawdownList.push_back(r.drawdown);
+
+                r.totalResult++;
+                r.totalTurnover += i.turnover;
+                r.totalCommission += i.commission;
+                r.totalSlippage += i.slippage;
+
+                if(i.pnl >= 0)
+                {
+                    r.winningResult ++;
+                    r.totalWinning += i.pnl;
+                }
+                else
+                {
+                    r.losingResult ++;
+                    r.totalLosing += i.pnl;
+                }
+            }
+
+            r.winningRate = r.winningResult/r.totalResult*100;
+            if(r.winningResult > 0)
+            {
+                r.averageWinning = r.totalWinning/r.winningResult;
+            }
+            if(r.losingResult > 0)
+            {
+                r.averageLosing = r.totalLosing/r.losingResult;
+            }
+            if(r.averageLosing > 0)
+            {
+                r.profitLossRatio = r.averageWinning/r.averageLosing;
+            }
+
+            r.tradeTimeList.swap(tradeTimeList);
+            r.posList.swap(posList);
+        }
+        return r;
+    }
+
+    void clearBacktestingResult()
+    {
+        limitOrderCount = 0;
+        limitOrderDict.clear();
+        workingLimitOrderDict.clear();
+
+        stopOrderCount = 0;
+        stopOrderDict.clear();
+        workingStopOrderDict.clear();
+
+        tradeCount = 0;
+        tradeDict.clear();
     }
 };
 

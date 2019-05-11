@@ -25,13 +25,13 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 {
 	public:
 	const std::string name;		//the instance name (with different symbol)
-	const std::string className;
+	virtual const std::string getClassName() = 0;
 
     CtaEngine& m_ctaEngine;
 
 	//strategy parameters
 	//std::string m_settingfilePath;
-	boost::property_tree::ptree parameters;
+	boost::property_tree::ptree* parameters;
 
     public:
     //from configuration setting
@@ -47,13 +47,15 @@ class Strategy : public std::enable_shared_from_this<Strategy>
     int position;
 
     public:
-    Strategy(const std::string& instanceName, const std::string& aClassName, 
-	CtaEngine& e, const boost::property_tree::ptree& aParameters)
-    : name(instanceName), className(aClassName) m_ctaEngine(e), parameters(aParameters)
+    Strategy(const std::string& instanceName,  
+	CtaEngine& e)
+    : name(instanceName)
+	, m_ctaEngine(e)
+	//, parameters(NULL)
     {}
 
 	public:
-	virtual bool init() =0;
+	virtual bool init(const boost::property_tree::ptree* aParameters) =0;
 	virtual void onInit() =0;
 	virtual bool start() =0;
 	virtual void onStart() =0;
