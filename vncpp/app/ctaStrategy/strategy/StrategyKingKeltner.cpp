@@ -45,9 +45,10 @@ class StrategyKingKeltner : public Strategy
     int intraTradeHigh;
     int intraTradeLow;
 
-    std::vector<OrderID> buyOrderIDList;
-    std::vector<OrderID> shortOrderIDList;
-    std::vector<OrderPtr> orderList;
+    //OcoOrder, One Cancel Another
+    OrderID buyOrderID;
+    OrderID shortOrderID;
+    std::vector<OrderID> orderList;
 
 public:
     static const std::string className = "StrategyKingKeltner";
@@ -94,14 +95,94 @@ public:
 	virtual void onStop()
     {}
 
-    virtual void onTick(TickPtr)
-    {}
+    virtual void onTick(TickPtr t)
+    {
+        bg->updateTick(t);
+    }
+    virtual void onBar(BarPtr b)      //K-line
+    {
+        bg->updateBar(b);
+    }
+
+    void onFiveBar(BarPtr b)
+    {
+        for(auto i : orderList)
+        {
+            cancelOrder(i);
+        }
+        orderList.clear();
+
+        am.updateBar(b);
+
+        am.keltner(kkLength, kkDev);
+
+        if(position == 0)
+        {
+            intraTradeHigh = b->high;
+            intraTradeLow = b->low;
+            sendOcoOrder(kkUp, kkDown, fixedSize);
+        }
+        else if(position > 0)
+        {
+            intraTradeHigh = std::max(intraTradeHigh, b->high);
+            intraTradeLow = b->low;
+            auto id = sell(intraTradeHigh * (1 - trailingPrcnt/100), position, true);
+            orderList.push_back(id);
+        }
+        else if(position < 0)
+        {
+            intraTradeHigh = b->high;
+            intraTradeLow = std::min(intraTradeLow, b->low);
+            auto id = cover(intraTradeLow * (1 + trailingPrcnt/100), -position, true);
+            orderList.push_back(id);
+        }
+
+        saveSyncData();
+
+        //putEvent();
+    }
+
     virtual void onOrder(OrderPtr)
     {}
-    virtual void onTrade(TradePtr)
-    {}
-    virtual void onBar(BarPtr)      //K-line
-    {}
+
+    virtual void onTrade(TradePtr t)
+    {
+        if(position != 0)
+        {
+            if(position > 0)
+            {
+                cancelOrder(shortOrderID);
+            }
+            else if(position < 0)
+            {
+                cancelOrder(buyOrderID);
+            }
+
+            //{
+            //    //auto i = std::find(orderList.cbegin(), orderList.cend(), shortOrderID);
+            //    //if(i != orderList.cend())
+            //    //    orderList.erase(i);
+            //    orderList.erase(std::remove(orderList.begin(), orderList.end(), shortOrderID), orderList.end());
+            //}
+            orderList.erase(std::remove_if(orderList.begin(), orderList.end(), 
+            [&shortOrderID, &buyOrderID](const OrderID& id)
+            {
+                return (id == shortOrderID) || (id == buyOrderID);
+            }
+            ), orderList.end());
+        }
+
+        //putEvent();
+    }
+
+    void sendOcoOrder(double buyPrice, double shortPrice, int volume)
+    {
+        auto buyOrderID = buy(buyPrice, volume, true);
+        auto shortOrderID = short(shortPrice, volume, true);
+        orderList.push_back(buyOrderID);
+        orderList.push_back(shortOrderID);
+    }
+
     virtual void onStopOrder(StopOrderPtr)
     {}
 };

@@ -233,6 +233,7 @@ class CtaEngine
 		{
 			auto& s = i->second;
 			s->start();
+			//do something
 			m_ee->post(std::bind(&Strategy::onStart, s));
 		}
 	}
