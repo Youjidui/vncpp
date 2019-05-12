@@ -7,24 +7,31 @@
 
 class MainEngine
 {
-	EventEnginePtr m_eventEngine;
-	std::map<std::string, GatewayPtr> m_gateways;
-	std::map<std::string, AppPtr> m_apps;
+protected:
+	EventEnginePtr eventEngine;
+	DataEnginePtr dataEngine;
+	RiskManagerEnginePtr rmEngine;
+	std::map<std::string, GatewayPtr> gatewayDict;
+	std::map<std::string, AppPtr> appDict;
 
-	public:
+	std::string todayDate;
+	std::string dbClient;
+
+
+public:
 	MainEngine(EventEnginePtr ee)
-		: m_eventEngine(ee)
+		: eventEngine(ee)
 	{
 	}
 
 	void addGateway(GatewayPtr gw)
 	{
-		m_gateways[gw->getName()] = gw;
+		gatewayDict[gw->getName()] = gw;
 	}
 
 	void addApp(AppPtr app)
 	{
-		m_apps[app->getName()] = app;
+		appDict[app->getName()] = app;
 	}
 
 };
