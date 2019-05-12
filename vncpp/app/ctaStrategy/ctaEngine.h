@@ -309,7 +309,9 @@ class CtaEngine
 
 		for(auto i : m_strategyDict)
 		{
-			i->second->parameters = ptall.get_child(i->first);
+			//i->second->parameters = ptall.get_child(i->first);
+			auto& p = ptall.get_child(i->first);
+			i->second->init(&p);
 		}
 	}
 

@@ -2,6 +2,22 @@
 #include "ctaEngine.h"
 
 
+#if defined(_MSC_VER)
+    //  Microsoft 
+    #define API_EXPORT __declspec(dllexport)
+    #define API_IMPORT __declspec(dllimport)
+#elif defined(__GNUC__)
+    //  GCC
+    #define API_EXPORT __attribute__((visibility("default")))
+    #define API_IMPORT
+#else
+    //  do nothing and hope for the best?
+    #define API_EXPORT
+    #define API_IMPORT
+    #pragma warning Unknown dynamic link import/export semantics.
+#endif
+
+
 const char* paramList[] =
 {
     "name",
@@ -190,7 +206,8 @@ public:
 
 extern "C"
 {
-Strategy* createStrategyInstance(const char* aInstanceName, const char* aStrategyClassName, 
+
+Strategy* API_EXPORT createStrategyInstance(const char* aInstanceName, const char* aStrategyClassName, 
 CtaEngine* engine)
 {
     if(engine == NULL)
@@ -204,7 +221,7 @@ CtaEngine* engine)
     return NULL;
 }
 
-void destroyStrategyInstance(Strategy* aStrategyInstance)
+void API_EXPORT destroyStrategyInstance(Strategy* aStrategyInstance)
 {
     delete aStrategyInstance;
 }

@@ -51,11 +51,16 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 	CtaEngine& e)
     : name(instanceName)
 	, m_ctaEngine(e)
-	//, parameters(NULL)
+	, parameters(NULL)
     {}
 
 	public:
-	virtual bool init(const boost::property_tree::ptree* aParameters) =0;
+	void setParameter(boost::property_tree::ptree* aParameters)
+	{
+		parameters = aParameters;
+	}
+
+	virtual bool init() = 0;
 	virtual void onInit() =0;
 	virtual bool start() =0;
 	virtual void onStart() =0;
