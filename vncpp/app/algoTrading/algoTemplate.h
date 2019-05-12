@@ -9,6 +9,20 @@
 #include <iostream>
 #include "logging.h"
 
+
+inline 
+double roundValue(double value, double change)
+{
+    if(change > 0.00001 || change < -0.00001)
+    {
+        auto n = value / change;
+        v = round(n, 0) * change;
+        return v;
+    }
+    return value;
+}
+
+
 class AlgoEngine;
 
 class AlgoTemplate
@@ -30,6 +44,15 @@ public:
     , parameters(NULL)
     , active(false)
     {}
+
+
+    virtual onTick(TickPtr t) = 0;
+    virtual onTrade(TradePtr t) = 0;
+    virtual onOrder(OrderPtr o) = 0;
+    virtual onTimer() =0;
+    virtual onStop() = 0;
+
+
 	void setParameter(boost::property_tree::ptree* aParameters)
 	{
 		parameters = aParameters;
@@ -42,17 +65,57 @@ public:
         return active;
     }
 
-    virtual onTick(TickPtr t) = 0;
-    virtual onTrade(TradePtr t) = 0;
-    virtual onOrder(OrderPtr o) = 0;
-    virtual onTimer() =0;
-    virtual onStop() = 0;
-
     void subscribe(const std::string& vtSymbol)
     {
         m_engine->subscribe(vtSymbol);
     }
 
+    void stop()
+    {
+        active = false;
+        cancelAll();
+
+        onStop();
+    }
+
+public:
+    void buy(const std::string& vtSymbol, double price, int volume,
+    int priceType, int offset)
+    {
+        m_engine->buy(vtSymbol, price, volume, priceType, offset);
+    }
+    void sell(const std::string& vtSymbol, double price, int volume,
+    int priceType, int offset)
+    {
+        m_engine->sell(vtSymbol, price, volume, priceType, offset);
+    }
+    void cancelOrder(const OrderID& vtOrderID)
+    {
+        m_engine->cancelOrder(vtOrderID);
+    }
+    void cancelAll()
+    {
+        if(!activeOrderDict.empty())
+        {
+            for(auto i : activeOrderDict)
+            {
+                cancelOrder(i.first);
+            }
+        }
+    }
+
+public:
+    TickPtr getTick(const std::string& vtSymbol)
+    {
+        return m_engine->getTick(vtSymbol);
+    }
+
+    ContractPtr getContract(const std::string& vtSymbol)
+    {
+        return m_engine->getContract(vtSymbol);
+    }
+
+public:
     void updateTick(TickPtr t)
     {
         if(active)
@@ -90,12 +153,5 @@ public:
             onTimer();
     }
 
-    void stop()
-    {
-        active = false;
-        cancelAll();
-
-        onStop();
-    }
 };
 
