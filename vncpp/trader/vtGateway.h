@@ -31,6 +31,56 @@ public:
 	boost::property_tree::ptree* parameters;
 
 public:
+	Gateway(const std::string& aInstanceName, EventEngine& ee)
+		: name(aInstanceName), m_eventEngine(ee)
+	{
+	}
+
+	void onTick(TickPtr p)
+	{
+		m_eventEngine->emit(Event(EVENT_TICK, p));
+	}
+
+	void onTrade(TradePtr p)
+	{
+		m_eventEngine->emit(Event(EVENT_TRADE, p));
+	}
+
+	void onOrder(OrderPtr p)
+	{
+		m_eventEngine->emit(Event(EVENT_ORDER, p));
+	}
+
+	void onPosition(PositionPtr p)
+	{
+		m_eventEngine->emit(Event(EVENT_POSITION, p));
+	}
+
+	void onAccount(AccountPtr p)
+	{
+		m_eventEngine->emit(Event(EVENT_ACCOUNT, p));
+	}
+
+	void onContract(ContractPtr p)
+	{
+		m_eventEngine->emit(Event(EVENT_CONTRACT, p));
+	}
+
+	void onHistory(HistoryPtr p)
+	{
+		m_eventEngine->emit(Event(EVENT_HISTORY, p));
+	}
+
+	void connect() = 0;
+	void close() = 0;
+
+	void subscribe(SubscriptionRequestPtr p) = 0;
+	void sendOrder(OrderRequestPtr p) = 0;
+	void cancelOrder(CancelOrderRequestPtr p) = 0;
+
+	void queryAccount(QueryAccountRequestPtr p) = 0;
+	void queryPosition(QueryPositionRequestPtr p) = 0;
+	void queryHistory(QueryHistoryRequestPtr p) = 0;
 }
 
 

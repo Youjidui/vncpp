@@ -15,6 +15,10 @@ enum event_type
 	EVENT_TICK,
 	EVENT_ORDER,
 	EVENT_TRADE,
+	EVENT_POSITION,
+	EVENT_ACCOUNT,
+	EVENT_CONTRACT,
+	EVENT_HISTORY,
 	EVENT_CTA_LOG
 };
 
@@ -30,6 +34,7 @@ class Event
 {
 	public:
 	enum event_type type;
+	//std::string subType;	//vtSymbol for tick/trade/position, or vtOrderID for order, or Account for account
 	EventDataPtr dict;
 
 	public:
