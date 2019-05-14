@@ -15,25 +15,28 @@
 
 class CtaEngine
 {
-	protected:
-		EventEnginePtr m_ee;
+protected:
+	EventEnginePtr m_ee;
 
-	public:
-		typedef std::string Symbol;
-		std::map<Symbol, StopOrderPtr> m_workingStopOrderDict;
-		typedef std::string StrategyName;
-		typedef std::string StopOrderID;
-		std::map<StrategyName, StopOrderID>  m_strategyOrderDict;
-		typedef std::list<StrategyPtr> StrategyList;
-		std::map<Symbol, StrategyList> m_tickStrategyDict;
-		typedef std::string OrderID;
-		std::map<OrderID, StrategyPtr> m_orderStrategyDict;
-		typedef std::string StrategyInstanceName;
-		std::map<StrategyInstanceName, StrategyPtr> m_strategyDict;
-		std::string m_settingfilePath;
+public:
+	typedef std::string Symbol;
+	std::map<Symbol, StopOrderPtr> m_workingStopOrderDict;
+	typedef std::string StrategyName;
+	typedef std::string StopOrderID;
+	std::map<StrategyName, StopOrderID>  m_strategyOrderDict;
+	typedef std::list<StrategyPtr> StrategyList;
+	std::map<Symbol, StrategyList> m_tickStrategyDict;
+	typedef std::string OrderID;
+	std::map<OrderID, StrategyPtr> m_orderStrategyDict;
+	typedef std::string StrategyInstanceName;
+	std::map<StrategyInstanceName, StrategyPtr> m_strategyDict;
+	std::string m_settingfilePath;
 
-	public:
-		CtaEngine(EventEnginePtr ee) : m_ee(ee) {}
+public:
+	CtaEngine(EventEnginePtr ee) : m_ee(ee)
+	{
+		registerEvent();
+	}
 
 	protected:
 	OrderID sendOrder(std::sting const& vtSymbol, int orderType, double price, int volume, StrategyPtr strategy)
@@ -311,7 +314,7 @@ class CtaEngine
 		{
 			//i->second->parameters = ptall.get_child(i->first);
 			auto& p = ptall.get_child(i->first);
-			i->second->init(&p);
+			i->second->setParameter(&p);
 		}
 	}
 
