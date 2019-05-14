@@ -1,5 +1,10 @@
 #pragma once
 
+#include <stdint.h>
+#include <time.h>
+#include <string>
+#include <memory>
+
 struct ContractData
 {
 	//std::string symbol;		//can be set in channel info and remove from the object to shrink the data size
@@ -85,6 +90,7 @@ public:
 	{}
 };
 
+typedef std::shared_ptr<Tick> TickPtr;
 
 struct Bar : public ContractData, public Timestamp, public BarData
 {
@@ -100,6 +106,9 @@ struct Bar : public ContractData, public Timestamp, public BarData
 	{}
 };
 
+typedef std::shared_ptr<Bar> BarPtr;
+
+
 struct Trade : public ContractData, public Timestamp
 {
 	std::string tradeID;
@@ -112,6 +121,9 @@ struct Trade : public ContractData, public Timestamp
 	double price;
 	int volume;
 };
+
+typedef std::shared_ptr<Trade> TradePtr;
+
 
 struct Order : public ContractData, public Timestamp
 {
@@ -127,6 +139,9 @@ struct Order : public ContractData, public Timestamp
 
 };
 
+typedef std::shared_ptr<Order> OrderPtr;
+
+
 struct Position : public ContractData, public Timestamp
 {
 	std::string vtPositionName;
@@ -138,6 +153,9 @@ struct Position : public ContractData, public Timestamp
 	double profit;
 
 };
+
+typedef std::shared_ptr<Position> PositionPtr;
+
 
 struct Account
 {
@@ -153,6 +171,8 @@ struct Account
 	double positionProfit;
 };
 
+typedef std::shared_ptr<Account> AccountPtr;
+
 
 struct Contract : public ContractData
 {
@@ -167,4 +187,58 @@ struct Contract : public ContractData
 	time_t expiryDate;
 };
 
+typedef std::shared_ptr<Contract> ContractPtr;
+
+
+struct SubscribeRequest
+{
+	std::string symbol;
+	std::string exchange;
+
+	std::string productClass;
+	std::string currency;
+	time_t expiryDate;
+	double strikePrice;
+	char optionType;
+};
+
+typedef std::shared_ptr<SubscribeRequest> SubscribeRequestPtr;
+
+
+struct OrderRequest
+{
+	std::string symbol;
+	std::string exchange;
+	std::string vtSymbol;
+	double price;
+	int volume;
+
+	int priceType;
+	int direction;
+	int offset;
+
+	int productClass;
+	std::string currency;
+	time_t expiry;
+	double strikePrice;
+	char optionType;
+	std::string lastTradeDateOrContractMonth;
+	double multiplier;
+};
+
+typedef std::shared_ptr<OrderRequest> OrderRequestPtr;
+
+
+struct CancelOrderRequest
+{
+	std::string symbol;
+	std::string exchange;
+	std::string vtSymbol;
+
+	std::string orderID;
+	std::string frontID;
+	std::string sessionID;
+};
+
+typedef std::shared_ptr<CancelOrderRequest> CancelOrderRequestPtr;
 
