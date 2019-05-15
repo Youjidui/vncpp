@@ -18,7 +18,8 @@ protected:
 	std::map<std::string, AppPtr> appDict;
 
 	std::string todayDate;
-	std::string dbClient;
+
+    std::shared_ptr<boost::property_tree::ptree> parameters;
 
 
 public:
@@ -131,5 +132,9 @@ public:
 typedef std::shared_ptr<MainEngine> MainEnginePtr;
 
 extern MainEnginePtr main_engine(EventEnginePtr p);
+
+
+
+
 
 
