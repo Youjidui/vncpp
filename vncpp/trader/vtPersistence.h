@@ -47,8 +47,9 @@ public:
     }
 
     void dbQuery(const std::string& dbName, const std::string& collectionName,
-      bsoncxx::document::value&& data, std::string&& sortKey, 
-      sortDirection = ASCENDING)
+      bsoncxx::document::value&& data,
+      std::function<void (mongocxx::cursor&)> onQuery,
+      std::string&& sortKey, sortDirection = ASCENDING)
     {
         if(dbClient)
         {
@@ -58,12 +59,25 @@ public:
             if(sortKey.empty())
             {
                 auto cursor = collection.find(data);
+                onQuery(cursor)
             }
             else
             {
                 auto cursor = collection.find(data).sort(sortKey, sortDirection);
+                onQuery(cursor)
             }
-            
+        }
+    }
+
+    void dbUpdate(const std::string& dbName, const std::string& collectionName,
+    bsoncxx::document::value&& data,
+    std::string&& filter, bool upsert = false)
+    {
+        if(dbClient)
+        {
+            auto db = dbClient[dbName];
+            auto c = db[collectionName];
+            c.replace_one(filter, data, upsert);
         }
     }
 };
