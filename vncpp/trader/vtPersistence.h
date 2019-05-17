@@ -114,6 +114,11 @@ public:
 
     EventEngine m_ee;
 
+	std::map<Symbol, TickPtr> tickDict;
+	std::map<Symbol, ContractPtr> contractDict;
+	std::map<OrderID, OrderPtr> orderDict;
+	std::map<OrderID, TradePtr> tradePtr;
+
     DataEngine(EventEnginePtr ee)
     : m_ee(ee)
     {
@@ -141,7 +146,7 @@ public:
     void processTickEvent(Event e)
     {
         auto tick = e.dict;
-        tickDick[tick->vtSymbol] = tick;
+        tickDict[tick->vtSymbol] = tick;
     }
 
     void processContractEvent(Event e)
@@ -150,4 +155,11 @@ public:
         contractDict[contract->vtSymbol] = contract;
         contractDict[contract->symbol] = contract;
     }
+
+	void processOrderEvent(Event e)
+	{
+		auto o = e.dict;
+		orderDict[o->vtOrderID] = o;
+	}
+
 };
