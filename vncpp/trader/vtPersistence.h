@@ -80,10 +80,74 @@ public:
             c.replace_one(filter, data, upsert);
         }
     }
+
+    void dbDelete(const std::string& dbName, const std::string& collectionName,
+    std::string&& filter)
+    {
+        if(dbClient)
+        {
+            auto db = dbClient[dbName];
+            auto c = db[collectionName];
+            c.delete_one(filter);
+        }
+    }
+
+    void dbLogging(Event e)
+    {
+        auto log = e.dict;
+        bsoncxx::document::value doc_value = bsoncxx::builder
+        << "content" << log->logContent
+        << "time" << log->logTime
+        << "gateway" << log->moduleName
+        << bsoncxx::builder::stream::finalize;
+
+        dbInsert(LOG_DB_NAME, todayDate, doc_value);
+    }
 };
 
 
 class DataEngine
 {
 public:
+    std::string contractFileName;
+    std::string contractFilePath;
+
+    EventEngine m_ee;
+
+    DataEngine(EventEnginePtr ee)
+    : m_ee(ee)
+    {
+
+    }
+
+    void init(const std::string& contractFilePath)
+    {
+        loadContracts(contractFilePath);
+        registerEvent();
+    }
+
+    void registerEvent()
+    {
+		m_ee->register(EVENT_TICK, std::bind(&DataEngine::processTickEvent, this, std::placeholders::_1));
+		m_ee->register(EVENT_ORDER, std::bind(&DataEngine::processOrderEvent, this, std::placeholders::_1));
+		m_ee->register(EVENT_TRADE, std::bind(&DataEngine::processTradeEvent, this, std::placeholders::_1));
+		m_ee->register(EVENT_CONTRACT, std::bind(&DataEngine::processContractEvent, this, std::placeholders::_1));
+		m_ee->register(EVENT_POSITION, std::bind(&DataEngine::processPositionEvent, this, std::placeholders::_1));
+		m_ee->register(EVENT_ACCOUNT, std::bind(&DataEngine::processAccountEvent, this, std::placeholders::_1));
+		m_ee->register(EVENT_LOG, std::bind(&DataEngine::processLogEvent, this, std::placeholders::_1));
+		m_ee->register(EVENT_ERROR, std::bind(&DataEngine::processErrorEvent, this, std::placeholders::_1));
+    }
+
+    void processTickEvent(Event e)
+    {
+        auto tick = e.dict;
+        tickDick[tick->vtSymbol] = tick;
+    }
+
+    void processContractEvent(Event e)
+    {
+        auto contract = e.dict;
+        contractDict[contract->vtSymbol] = contract;
+        contractDict[contract->symbol] = contract;
+    }
 };
