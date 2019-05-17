@@ -8,7 +8,7 @@
 #include <boost/asio.hpp>
 //#include <tuple>
 
-enum event_type
+enum EventType
 {
 	//ENT_ERROR,
 	EVENT_TIMER,
@@ -33,17 +33,17 @@ typedef std::shared_ptr<EventData> EventDataPtr;
 class Event
 {
 	public:
-	enum event_type type;
+	EventType type;
 	//std::string subType;	//vtSymbol for tick/trade/position, or vtOrderID for order, or Account for account
 	EventDataPtr dict;
 
 	public:
-	Event(enum event_type type1, const EventDataPtr& args)
+	Event(EventType type1, const EventDataPtr& args)
 		: type(type1),
 		dict(std::move(args))
 	{
 	}
-	Event(enum event_type type1, EventDataPtr&& args)
+	Event(EventType type1, EventDataPtr&& args)
 		: type(type1),
 		dict(std::move(args))
 	{
@@ -98,7 +98,7 @@ Event make_error_event(int code, std::string const& text)
 inline
 bool extract_error_event(Event const& e, int& code, std::string& text)
 {
-	if(ENT_ERROR == e.m_type)
+	if(ENT_ERROR == e.type)
 	{
 		auto p = std::dynamic_pointer_cast<ErrorData>(e.m_dict);
 		code = p->m_code;
@@ -132,14 +132,14 @@ class EventLoop
 	void start()
 	{
 		m_context.reset(new boost::asio::io_context);
-		m_donothing.reset(new boost::asio::io_context::work(m_context.get()));
-		m_worker.reset(new std::thread(std::bind(&EventEngine::run, this)));
+		m_donothing.reset(new boost::asio::io_context::work(*m_context.get()));
+		m_worker.reset(new std::thread(std::bind(&EventLoop::run, this)));
 	}
 
 	void stop()
 	{
 		m_donothing.reset();
-		m_context.stop();
+		m_context->stop();
 		m_worker->join();
 	}
 
@@ -155,27 +155,42 @@ class EventLoop
 class EventHandlerRegistry
 {
 	protected:
-	typedef std::vector<EventHandler> EventHandlerVector;
-        EventHandlerVector	m_handlers;
-	std::map<enum event_type, EventHandlerVector> m_handlerMap;
+	struct EventHandlerRegistryItem
+	{
+		uint32_t id;
+		EventHandler h;
+		EventHandlerRegistryItem(uint32_t new_id, EventHandler&& rh)
+			: id(new_id), h(rh)
+		{}
+	};
+
+	protected:
+	uint32_t next_new_id;
+	typedef std::vector<EventHandlerRegistryItem> EventHandlerVector;
+	std::map<EventType, EventHandlerVector> m_handlerMap;
 
 	public:
-	void register(enum event_type e, EventHandler h)
+	EventHandlerRegistry()
+		: next_new_id(0)
+	{}
+
+	uint32_t register_(EventType e, EventHandler&& h)
 	{
 		auto i = m_handlerMap.find(e);
 		if(m_handlerMap.end() == i)
 		{
 			EventHandlerVector v;
-			v.push_back(h);
-			m_handlerMap.insert(std::make_pair(e, v));
+			v.push_back(EventHandlerRegistryItem{ ++next_new_id, std::move(h)});
+			m_handlerMap.insert(std::make_pair(e, std::move(v)));
 		}
 		else
 		{
-			i->second.push_back(h);
+			i->second.push_back(EventHandlerRegistryItem{ ++next_new_id, std::move(h)});
 		}
+		return next_new_id;
 	}
 
-	void unregister(enum event_type, EventHandler)
+	void unregister_(EventType e, uint32_t id)
 	{
 		auto i = m_handlerMap.find(e);
 		if(m_handlerMap.end() != i)
@@ -183,25 +198,24 @@ class EventHandlerRegistry
 			auto& v = i->second;
 			for(auto n = v.begin(); n != v.end(); ++n)
 			{
-				if(*n == h)
+				if(n->id == id)
 				{
 					v.erase(n);
 					break;
 				}
-			}	
+			}
 		}
 	}
 
-	protected:
 	void onEvent(Event e)
 	{
-		auto i = m_handlerMap.find(e.m_type);
+		auto i = m_handlerMap.find(e.type);
 		if(i != m_handlerMap.cend())
 		{
 			auto& v = i->second;
 			for(auto f : v)
 			{
-				f(e);
+				f.h(e);
 			}
 		}
 	}
@@ -232,10 +246,9 @@ class Observable
 
 	void unsubscribe(uint32_t id)
 	{
-		m_observerMap.erase(i);
+		m_observerMap.erase(id);
 	}
 
-	protected:
 	void onData(Event e)
 	{
 		for(auto i : m_observerMap)
