@@ -55,6 +55,7 @@ class LogData : public EventData
 {
 	public:
 	std::string moduleName;
+	time_t logTime;
 	std::string logContent;
 	
 	LogData(std::string&& aModuleName, std::string&& aLogContent)
