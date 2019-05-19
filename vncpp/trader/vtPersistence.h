@@ -211,6 +211,11 @@ public:
 	bool saveContracts()
 	{}
 
+	ContractPtr getContract(const Symbol& s)
+	{
+		return ContractPtr();
+	}
+
 	void updateOrderReq(OrderRequestPtr req, const std::string& orderID)
 	{
 	}

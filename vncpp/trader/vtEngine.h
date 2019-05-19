@@ -13,9 +13,11 @@
 class MainEngine
 {
 protected:
+public:
 	EventEnginePtr eventEngine;
 	DataEnginePtr dataEngine;
 	//RiskManagerEnginePtr rmEngine;
+protected:
 	std::map<std::string, GatewayPtr> gatewayDict;
 	std::map<std::string, AppPtr> appDict;
 
@@ -112,6 +114,10 @@ public:
 			return std::vector<PositionPtr>();
 	}
 
+	ContractPtr getContract(const Symbol& s)
+	{
+		return dataEngine->getContract(s);
+	}
 
 	void exit()
 	{
@@ -129,6 +135,8 @@ public:
 
 		eventEngine->stop();
 	}
+
+
 };
 
 typedef std::shared_ptr<MainEngine> MainEnginePtr;

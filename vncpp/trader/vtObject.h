@@ -21,7 +21,7 @@ struct _Contract
 	std::string symbol;		//exchange encoded symbol
 	std::string exchange;
 	std::string vtSymbol;		//global unique symbol
-	std::string gateway;
+	std::string gatewayName;
 
 	static std::string make_vtSymbol(const std::string& s, const std::string& ex)
 	{
@@ -30,7 +30,7 @@ struct _Contract
 
 	_Contract(){}
 	_Contract(const std::string& s, const std::string& ex, const std::string& g)
-	: symbol(s), exchange(ex), vtSymbol(make_vtSymbol(s, ex)), gateway(g)
+	: symbol(s), exchange(ex), vtSymbol(make_vtSymbol(s, ex)), gatewayName(g)
 	{}
 };
 
@@ -221,6 +221,7 @@ struct Contract : public EventData, public _Contract
 	int productClass;
 	int contractSize;
 	double priceTick;
+	std::string currency;
 
 	double strikePrice;
 	std::string underlyingSymbol;
@@ -241,6 +242,13 @@ struct SubscribeRequest
 	time_t expiryDate;
 	double strikePrice;
 	char optionType;
+
+	SubscribeRequest(const std::string& symbol, const std::string& exchange,
+			const std::string& productClass, const std::string& currency,
+			time_t expiry = 0, double strike = 0.0, char optionType = 0)
+		: symbol(symbol), exchange(exchange), productClass(productClass)
+		  , currency(currency), expiryDate(expiry), strikePrice(strike), optionType(optionType)
+	{}
 };
 
 typedef std::shared_ptr<SubscribeRequest> SubscribeRequestPtr;

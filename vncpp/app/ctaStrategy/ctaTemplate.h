@@ -231,7 +231,7 @@ class StrategyLoaderForDynamicLibrary
 	{
 		auto p = loadStrategy(aInstanceName, aStrategyClassName, aModuleName, engine);
 		if(p)
-			return StrategyPtr(p, &dynamicLibraryDestroyStrategyInstance);
+			return StrategyPtr(p, StrategyDeleter(&dynamicLibraryDestroyStrategyInstance, this));
 		else
 			throw std::runtime_error("null pointer. load strategy failed");
 	}

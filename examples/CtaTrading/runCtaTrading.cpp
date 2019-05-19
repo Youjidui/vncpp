@@ -5,7 +5,8 @@
 #include "eventEngine.h"
 #include "vtEngine.h"
 #include "ctp/ctpGateway.h"
-#include "ctaStrategy/ctaEngine.h"
+//#include "ctaStrategy/ctaEngine.h"
+#include "ctaStrategy/ctaStrategy.h"
 
 void on_error(uint32_t code, std::string const& text)
 {
@@ -25,7 +26,7 @@ void run_child_process()
 	auto me = mainEngine(ee);
 	auto gw = ctpGateway("CTP", ee);
 	me->addGateway(gw);
-	auto stg = ctaStrategy(ee);
+	auto stg = ctaStrategy(me, ee);
 	me->addApp(stg);
 	LOG_INFO << ("start main engine");
 

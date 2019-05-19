@@ -11,6 +11,8 @@
 #include <set>
 #include "logging.h"
 #include "eventEngine.h"
+#include "vtEngine.h"
+//#include "vtPersistence.h"
 #include "ctaTemplate.h"
 
 
@@ -25,6 +27,7 @@ class CtaEngine
 {
 protected:
 	EventEnginePtr m_ee;
+	MainEnginePtr mainEngine;
 	int engineType;
 
 public:
@@ -41,7 +44,8 @@ public:
 	std::string m_settingfilePath;
 
 public:
-	CtaEngine(EventEnginePtr ee) : m_ee(ee)
+	CtaEngine(EventEnginePtr ee, MainEnginePtr m) 
+		: m_ee(ee), mainEngine(m)
 	{
 		registerEvent();
 	}
@@ -187,7 +191,7 @@ public:
 			auto q = trade->volume;
 			if(trade->direction == DIRECTION_SHORT)
 				q = -q;
-			s->pos += trade->volume;
+			s->position += trade->volume;
 
 			m_ee->post(std::bind(&Strategy::onTrade, s, trade));
 		}
@@ -303,7 +307,7 @@ public:
 				c->symbol, c->exchange, s->currency.empty() ? c->currency : s->currency,
 				s->productClass
 			);
-			mainEngine->subscribe(req, c->getwayName);
+			mainEngine->subscribe(req, c->gatewayName);
 		}
 		else
 		{
@@ -325,7 +329,7 @@ public:
 		boost::property_tree::ptree ptall;
 		for(auto i : m_strategyDict)
 		{
-			ptall.put_child(i.first, i.second->parameters);
+			ptall.put_child(i.first, *(i.second->parameters));
 		}
 		boost::property_tree::json_parser::write_json(m_settingfilePath, ptall);
 	}

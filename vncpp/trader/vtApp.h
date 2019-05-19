@@ -11,8 +11,12 @@ class App
 {
 	public:
 	std::string name;
+	std::string displayName;
 
 	public:
+	App(const std::string& appName, const std::string& appDisplayName)
+		: name(appName), displayName(appDisplayName)
+	{}
 	virtual ~App() {}
 
 	virtual bool start() = 0;
