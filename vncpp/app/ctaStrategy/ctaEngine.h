@@ -1,3 +1,4 @@
+#pragma once
 #include <stdint.h>
 #include <memory>
 #include <functional>
@@ -47,7 +48,7 @@ public:
 	{
 	}
 
-	OrderID sendStopOrder(std::string const& vtSymbol， int orderType, double price, double stopPrice, int volume, StrategyPtr strategy)
+	OrderID sendStopOrder(std::string const& vtSymbol, int orderType, double price, double stopPrice, int volume, StrategyPtr strategy)
 	{
 	}
 
@@ -172,9 +173,9 @@ public:
 
 	void registerEvent()
 	{
-		m_ee->register(EVENT_TICK, std::bind(&CtaEngine::processTickEvent, this, std::placeholders::_1));
-		m_ee->register(EVENT_ORDER, std::bind(&CtaEngine::processOrderEvent, this, std::placeholders::_1));
-		m_ee->register(EVENT_TRADE, std::bind(&CtaEngine::processTradeEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_TICK, std::bind(&CtaEngine::processTickEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_ORDER, std::bind(&CtaEngine::processOrderEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_TRADE, std::bind(&CtaEngine::processTradeEvent, this, std::placeholders::_1));
 	}
 
 	void insertData() 
@@ -338,4 +339,8 @@ public:
 		return 0;
 	}
 };
+
+typedef std::shared_ptr<CtaEngine> CtaEnginePtr;
+
+extern CtaEnginePtr ctaEngine(EventEnginePtr e);
 

@@ -6,6 +6,8 @@
 #include "eventEngine.h"
 #include "vtObject.h"
 #include "vtGateway.h"
+#include "vtPersistence.h"
+#include "vtApp.h"
 
 
 class MainEngine
@@ -13,7 +15,7 @@ class MainEngine
 protected:
 	EventEnginePtr eventEngine;
 	DataEnginePtr dataEngine;
-	RiskManagerEnginePtr rmEngine;
+	//RiskManagerEnginePtr rmEngine;
 	std::map<std::string, GatewayPtr> gatewayDict;
 	std::map<std::string, AppPtr> appDict;
 
@@ -31,12 +33,12 @@ public:
 
 	void addGateway(GatewayPtr gw)
 	{
-		gatewayDict[gw->getName()] = gw;
+		gatewayDict[gw->name] = gw;
 	}
 
 	void addApp(AppPtr app)
 	{
-		appDict[app->getName()] = app;
+		appDict[app->name] = app;
 	}
 
 	GatewayPtr getGateway(const std::string& gwName)
@@ -63,7 +65,7 @@ public:
 
 	OrderID sendOrder(OrderRequestPtr req, const std::string& gwName)
 	{
-		if(rmEngine && !rmEngine->checkRisk(req, gwName))
+		//if(rmEngine && !rmEngine->checkRisk(req, gwName))
 		{
 			return OrderID();
 		}
@@ -93,7 +95,7 @@ public:
 		auto gw = getGateway(gwName);
 		if(gw)
 		{
-			return gw->qryAccount();
+			return gw->queryAccount();
 		}
 		else
 			return AccountPtr();
@@ -104,7 +106,7 @@ public:
 		auto gw = getGateway(gwName);
 		if(gw)
 		{
-			return gw->qryPosition();
+			return gw->queryPosition();
 		}
 		else
 			return std::vector<PositionPtr>();
@@ -120,7 +122,7 @@ public:
 
 		for(auto j : appDict)
 		{
-			i.second->stop();
+			j.second->stop();
 		}
 
 		dataEngine->saveContracts();
@@ -131,7 +133,7 @@ public:
 
 typedef std::shared_ptr<MainEngine> MainEnginePtr;
 
-extern MainEnginePtr main_engine(EventEnginePtr p);
+extern MainEnginePtr mainEngine(EventEnginePtr p);
 
 
 

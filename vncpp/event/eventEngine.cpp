@@ -1,6 +1,6 @@
 #include "eventEngine.h"
 
-EventEnginePtr event_engine()
+EventEnginePtr eventEngine()
 {
 	return std::make_shared<EventEngine>();
 }

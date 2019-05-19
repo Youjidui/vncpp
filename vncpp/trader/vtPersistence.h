@@ -1,8 +1,15 @@
 #pragma once
-#include <bsoncxx/json.hpp>
-#include <mongocxx/client.hpp>
-#include <mongocxx/stdx.hpp>
-#include <mongocxx/uri.hpp>
+#include <stdint.h>
+#include <memory>
+#include <functional>
+#include <string.h>
+#include <string>
+//#include <bsoncxx/json.hpp>
+//#include <mongocxx/client.hpp>
+//#include <mongocxx/stdx.hpp>
+//#include <mongocxx/uri.hpp>
+#include "vtObject.h"
+
 
 
 /*
@@ -13,14 +20,23 @@ c++ --std=c++11 <input>.cpp
 */
 
 
+class PersistenceContainerBase
+{
+	public:
+	virtual ~PersistenceContainerBase(){}
+};
+
+typedef std::shared_ptr<PersistenceContainerBase> PersistenceContainerPtr;
+
 class PersistenceEngine
 {
     //boost::property_tree::ptree* parameters;
 	std::string dbURI;
-	std::shared_ptr<mongocxx::client> dbClient;
+	//std::shared_ptr<mongocxx::client> dbClient;
+	PersistenceContainerPtr dbClient;
 
 public:
-	PersistenceEngine();
+	//PersistenceEngine();
 
 	void setParameter(const boost::property_tree::ptree& parameters)
 	{
@@ -31,28 +47,34 @@ public:
 	{
 		if(!dbClient)
 		{
-			dbClient = std::make_shared<mongocxx::client>(dbURI);
+			const std::string mongodb = "mongodb";
+			if(strncmp(mongodb.c_str(), dbURI.c_str(), mongodb.length()) == 0)
+			{
+				//dbClient = std::make_shared<mongocxx::client>(dbURI);
+			}
 		}
 	}
 
     void dbInsert(const std::string& dbName, const std::string& collectionName,
-      bsoncxx::document::value&& data)
+      //bsoncxx::document::value&& data)
+	  std::string&& json_str)
     {
         if(dbClient)
         {
-            auto db = dbClient[dbName];
-            auto collection = db[collectionName];
-            auto result = collection.insert_one(data);
+            //auto db = dbClient[dbName];
+            //auto collection = db[collectionName];
+            //auto result = collection.insert_one(data);
         }
     }
 
     void dbQuery(const std::string& dbName, const std::string& collectionName,
-      bsoncxx::document::value&& data,
-      std::function<void (mongocxx::cursor&)> onQuery,
-      std::string&& sortKey, sortDirection = ASCENDING)
+		std::string&& queryCondition)
+      //bsoncxx::document::value&& data,
+      //std::function<void (mongocxx::cursor&)> onQuery,
+      //std::string&& sortKey, sortDirection = ASCENDING)
     {
         if(dbClient)
-        {
+        {/*
             auto db = dbClient[dbName];
             auto collection = db[collectionName];
 
@@ -65,19 +87,20 @@ public:
             {
                 auto cursor = collection.find(data).sort(sortKey, sortDirection);
                 onQuery(cursor)
-            }
+            }*/
         }
     }
 
     void dbUpdate(const std::string& dbName, const std::string& collectionName,
-    bsoncxx::document::value&& data,
+    //bsoncxx::document::value&& data,
+	std::string&& json_str,
     std::string&& filter, bool upsert = false)
     {
         if(dbClient)
         {
-            auto db = dbClient[dbName];
-            auto c = db[collectionName];
-            c.replace_one(filter, data, upsert);
+            //auto db = dbClient[dbName];
+            //auto c = db[collectionName];
+            //c.replace_one(filter, data, upsert);
         }
     }
 
@@ -86,14 +109,15 @@ public:
     {
         if(dbClient)
         {
-            auto db = dbClient[dbName];
-            auto c = db[collectionName];
-            c.delete_one(filter);
+            //auto db = dbClient[dbName];
+            //auto c = db[collectionName];
+            //c.delete_one(filter);
         }
     }
 
     void dbLogging(Event e)
     {
+		/*
         auto log = e.dict;
         bsoncxx::document::value doc_value = bsoncxx::builder
         << "content" << log->logContent
@@ -102,6 +126,7 @@ public:
         << bsoncxx::builder::stream::finalize;
 
         dbInsert(LOG_DB_NAME, todayDate, doc_value);
+		*/
     }
 };
 
@@ -112,7 +137,7 @@ public:
     std::string contractFileName;
     std::string contractFilePath;
 
-    EventEngine m_ee;
+    EventEnginePtr m_ee;
 
 	std::map<Symbol, TickPtr> tickDict;
 	std::map<Symbol, ContractPtr> contractDict;
@@ -127,39 +152,70 @@ public:
 
     void init(const std::string& contractFilePath)
     {
-        loadContracts(contractFilePath);
+        //loadContracts(contractFilePath);
         registerEvent();
     }
 
     void registerEvent()
     {
-		m_ee->register(EVENT_TICK, std::bind(&DataEngine::processTickEvent, this, std::placeholders::_1));
-		m_ee->register(EVENT_ORDER, std::bind(&DataEngine::processOrderEvent, this, std::placeholders::_1));
-		m_ee->register(EVENT_TRADE, std::bind(&DataEngine::processTradeEvent, this, std::placeholders::_1));
-		m_ee->register(EVENT_CONTRACT, std::bind(&DataEngine::processContractEvent, this, std::placeholders::_1));
-		m_ee->register(EVENT_POSITION, std::bind(&DataEngine::processPositionEvent, this, std::placeholders::_1));
-		m_ee->register(EVENT_ACCOUNT, std::bind(&DataEngine::processAccountEvent, this, std::placeholders::_1));
-		m_ee->register(EVENT_LOG, std::bind(&DataEngine::processLogEvent, this, std::placeholders::_1));
-		m_ee->register(EVENT_ERROR, std::bind(&DataEngine::processErrorEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_TICK, std::bind(&DataEngine::processTickEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_ORDER, std::bind(&DataEngine::processOrderEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_TRADE, std::bind(&DataEngine::processTradeEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_CONTRACT, std::bind(&DataEngine::processContractEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_POSITION, std::bind(&DataEngine::processPositionEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_ACCOUNT, std::bind(&DataEngine::processAccountEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_LOG, std::bind(&DataEngine::processLogEvent, this, std::placeholders::_1));
+		m_ee->register_(EVENT_ERROR, std::bind(&DataEngine::processErrorEvent, this, std::placeholders::_1));
     }
 
     void processTickEvent(Event e)
     {
-        auto tick = e.dict;
+        auto tick = std::dynamic_pointer_cast<Tick>(e.dict);
         tickDict[tick->vtSymbol] = tick;
     }
 
     void processContractEvent(Event e)
     {
-        auto contract = e.dict;
+        auto contract = std::dynamic_pointer_cast<Contract>(e.dict);
         contractDict[contract->vtSymbol] = contract;
         contractDict[contract->symbol] = contract;
     }
 
 	void processOrderEvent(Event e)
 	{
-		auto o = e.dict;
+		auto o = std::dynamic_pointer_cast<Order>(e.dict);
 		orderDict[o->vtOrderID] = o;
 	}
 
+	void processTradeEvent(Event e)
+	{
+	}
+
+	void processPositionEvent(Event e)
+	{
+	}
+
+	void processAccountEvent(Event e)
+	{
+	}
+
+	void processLogEvent(Event e)
+	{
+	}
+
+	void processErrorEvent(Event e)
+	{
+	}
+
+	//bool loadContracts(const std
+	bool saveContracts()
+	{}
+
+	void updateOrderReq(OrderRequestPtr req, const std::string& orderID)
+	{
+	}
 };
+
+typedef std::shared_ptr<DataEngine> DataEnginePtr;
+
+

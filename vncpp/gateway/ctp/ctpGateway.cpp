@@ -1,7 +1,8 @@
 #include "ctpGateway.h"
 
-gatewayPtr ctp_gateway()
+GatewayPtr ctpGateway(const std::string& aInstanceName, EventEnginePtr e)
 {
-	return std::make_shared<ctpGateway>();
+	//return GatewayPtr(new CtpGateway(aInstanceName, e), GatewayDeleter(&staticLibraryDestroyGatewayInstance, NULL));
+	return std::make_shared<CtpGateway>(aInstanceName, e);
 }
 

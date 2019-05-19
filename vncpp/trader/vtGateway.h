@@ -1,3 +1,4 @@
+#pragma once
 #include <stdint.h>
 #include <memory>
 #include <functional>
@@ -15,6 +16,7 @@
 #include <Windows.h>
 #endif
 #include "eventEngine.h"
+#include "vtObject.h"
 
 
 class Gateway
@@ -36,59 +38,60 @@ public:
 	{
 	}
 
+	virtual ~Gateway() {}
+
 	void onTick(TickPtr p)
 	{
-		m_eventEngine->emit(Event(EVENT_TICK, p));
+		m_eventEngine.emit(Event(EVENT_TICK, p));
 	}
 
 	void onTrade(TradePtr p)
 	{
-		m_eventEngine->emit(Event(EVENT_TRADE, p));
+		m_eventEngine.emit(Event(EVENT_TRADE, p));
 	}
 
 	void onOrder(OrderPtr p)
 	{
-		m_eventEngine->emit(Event(EVENT_ORDER, p));
+		m_eventEngine.emit(Event(EVENT_ORDER, p));
 	}
 
 	void onPosition(PositionPtr p)
 	{
-		m_eventEngine->emit(Event(EVENT_POSITION, p));
+		m_eventEngine.emit(Event(EVENT_POSITION, p));
 	}
 
 	void onAccount(AccountPtr p)
 	{
-		m_eventEngine->emit(Event(EVENT_ACCOUNT, p));
+		m_eventEngine.emit(Event(EVENT_ACCOUNT, p));
 	}
 
 	void onContract(ContractPtr p)
 	{
-		m_eventEngine->emit(Event(EVENT_CONTRACT, p));
+		m_eventEngine.emit(Event(EVENT_CONTRACT, p));
 	}
-
+/*
 	void onHistory(HistoryPtr p)
 	{
-		m_eventEngine->emit(Event(EVENT_HISTORY, p));
+		m_eventEngine.emit(Event(EVENT_HISTORY, p));
 	}
+*/
+	virtual void connect() = 0;
+	virtual void close() = 0;
 
-	void connect() = 0;
-	void close() = 0;
+	virtual void subscribe(SubscribeRequestPtr p) = 0;
+	virtual OrderID sendOrder(OrderRequestPtr p) = 0;
+	virtual void cancelOrder(CancelOrderRequestPtr p) = 0;
 
-	void subscribe(SubscriptionRequestPtr p) = 0;
-	void sendOrder(OrderRequestPtr p) = 0;
-	void cancelOrder(CancelOrderRequestPtr p) = 0;
-
-	void queryAccount(QueryAccountRequestPtr p) = 0;
-	void queryPosition(QueryPositionRequestPtr p) = 0;
-	void queryHistory(QueryHistoryRequestPtr p) = 0;
-}
+	virtual AccountPtr queryAccount() = 0;
+	virtual std::vector<PositionPtr> queryPosition() = 0;
+	//virtual void queryHistory(QueryHistoryRequestPtr p) = 0;
+};
 
 
 //the gateway implementation has to implement and export those function for Engine
 typedef Gateway* (*FUNCTION_createGatewayInstance)(const char* aGatewayInstanceName, const char* aGatewayClassName, EventEngine* engine);
 typedef void (*FUNCTION_destroyGatewayInstance)(Gateway* aGatewayInstance);
 
-typedef void (*FUNCTION_gatewayDeleter)(Gateway* aGatewayInstance, void* aHost);
 
 //for the built-in gateway created by C++ keyword new
 inline 
@@ -100,7 +103,26 @@ void staticLibraryDestroyGatewayInstance(Gateway* p, void* aHost = NULL)
 //for the gateway created by FUNCTION_createGatewayInstance from DLL
 void dynamicLibraryDestroyGatewayInstance(Gateway* p, void* aHost);
 
-typedef std::shared_ptr<Gateway, FUNCTION_gatewayDeleter> GatewayPtr;
+struct GatewayDeleter
+{
+	typedef void (*FUNCTION_deleter)(Gateway*, void*);
+	FUNCTION_deleter deleter;
+	void* parameter;
+
+	GatewayDeleter(FUNCTION_deleter d, void* p)
+	: deleter(d), parameter(p)
+	{}
+	void operator()(Gateway* p)
+	{
+		deleter(p, parameter);
+	}
+};
+
+
+//typedef std::shared_ptr<Gateway, GatewayDeleter> GatewayPtr;
+typedef std::shared_ptr<Gateway> GatewayPtr;
+
+
 
 
 
@@ -118,7 +140,7 @@ class GatewayLoaderForDynamicLibrary
 	protected:
 	//there may be more than a Gateway in a DLL, using the Gateway name to identity each other
 	Gateway* loadGateway(const std::string& aInstanceName, const std::string& aGatewayClassName,
-     const std::string& aModuleName, CtaEngine& e)
+     const std::string& aModuleName, EventEngine& engine)
 	{
 		Gateway* r = nullptr;
 		#ifdef __linux__
@@ -137,12 +159,17 @@ class GatewayLoaderForDynamicLibrary
 			#endif
 			(handle, "createGatewayInstance");
 			if(createfn)
-				r = (Gateway*)createfn(aInstanceName, aGatewayClassName.c_str(), &engine);
+				r = (Gateway*)createfn(aInstanceName.c_str(), aGatewayClassName.c_str(), &engine);
 			if(r)
-			{
 				//to free the module
-				m_dllHandleDict.insert(std::make_pair(r->className, handle));
-			}
+				m_dllHandleDict.insert(std::make_pair(r->getClassName(), handle));
+			else
+				#ifdef __linux__
+				dlclose(handle);
+				#elif defined(__WINDOWS)
+				FreeLibrary(handle);
+				#endif
+
 		}
 		return r;
 	}
@@ -151,10 +178,11 @@ class GatewayLoaderForDynamicLibrary
 	{
 		if(s)
 		{
-			auto it = m_dllHandleDict.find(s->className);
+			auto it = m_dllHandleDict.find(s->getClassName());
 			if(it != m_dllHandleDict.end())
 			{
-				FUNCTION_destroyGatewayInstance destryFn = (FUNCTION_destroyGatewayInstance)
+				auto handle = it->second;
+				FUNCTION_destroyGatewayInstance destroyFn = (FUNCTION_destroyGatewayInstance)
 				#ifdef __linux__
 				dlsym
 				#elif defined(__WINDOWS)
@@ -175,12 +203,12 @@ class GatewayLoaderForDynamicLibrary
 	}
 
 	public:
-	GatewayPtr load(const std::string& aInstanceName, const std::string& aGatewayClassName, 
-    const std::string& aModuleName, CtaEngine& engine)
+	GatewayPtr load(const std::string& aInstanceName, const std::string& aGatewayName, 
+    const std::string& aModuleName, EventEngine& engine)
 	{
 		auto p = loadGateway(aInstanceName, aGatewayName, aModuleName, engine);
 		if(p)
-			return GatewayPtr(p, &dynamicLibraryDestroyGatewayInstance);
+			return GatewayPtr(p, GatewayDeleter(&dynamicLibraryDestroyGatewayInstance, this));
 		else
 			throw std::runtime_error("null pointer. load Gateway failed");
 	}
@@ -192,7 +220,7 @@ void dynamicLibraryDestroyGatewayInstance(Gateway* p, void* aHost)
 	auto h = (GatewayLoaderForDynamicLibrary*)aHost;
 	if(h)
 	{
-		h->freeGateway(s);
+		h->freeGateway(p);
 	}
 }
 
