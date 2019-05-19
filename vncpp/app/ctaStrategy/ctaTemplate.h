@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <memory>
 #include <functional>
-#include <list>
+#include <set>
 #include <map>
 #include <boost/variant.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -16,7 +16,6 @@
 #include <Windows.h>
 #endif
 #include "ctaBase.h"
-
 
 class CtaEngine;
 
@@ -48,8 +47,7 @@ class Strategy : public std::enable_shared_from_this<Strategy>
     int position;
 
     public:
-    Strategy(const std::string& instanceName,  
-	CtaEngine& e)
+    Strategy(const std::string& instanceName, CtaEngine& e)
     : name(instanceName)
 	, m_ctaEngine(e)
 	, parameters(NULL)
@@ -85,7 +83,7 @@ class Strategy : public std::enable_shared_from_this<Strategy>
         return sendOrder(CTAORDER_SELL, price, volume, stop);
     }
     //sell short and open
-    OrderID short(double price, int volume, bool stop = false)
+    OrderID Short(double price, int volume, bool stop = false)
     {
         return sendOrder(CTAORDER_SHORT, price, volume, stop);
     }
@@ -95,55 +93,23 @@ class Strategy : public std::enable_shared_from_this<Strategy>
         return sendOrder(CTAORDER_COVER, price, volume, stop);
     }
 
-    OrderID sendOrder(int orderType, double price, int volume, bool stop = false)
-    {
-        if(stop)
-            return m_ctaEngine.sendStopOrder(vtSymbol, orderType, price, volume, shared_from_this());
-        else
-            return m_ctaEngine.sendOrder(vtSymbol, orderType, price, volume, shared_from_this());
-            
-    }
+    OrderID sendOrder(int orderType, double price, int volume, bool stop = false);
 
-    void cancelOrder(const OrderID& vtOrderID)
-    {
-        if(isStopOrderID(vtOrderID))
-            m_ctaEngine.cancelStopOrder(vtOrderID);
-        else
-            m_ctaEngine.cancelOrder(vtOrderID);
-    }
+    void cancelOrder(const OrderID& vtOrderID);
 
-    void cancelAll()
-    {
-        m_ctaEngine.cancelAll(name);
-    }
+    void cancelAll();
 
 
-    void insertTick(TickPtr tick)
-    {
-        m_ctaEngine.insertData(tickDbName, vtSymbol, tick);
-    }
-    void insertBar(BarPtr bar)
-    {
-        m_ctaEngine.insertData(BarDbName, vtSymbol, bar);
-    }
-    void loadTick(int days)
-    {
-        m_ctaEngine.loadTick(tickDbName, vtSymbol, days);
-    }
-    void loadBar(int days)
-    {
-        m_ctaEngine.loadBar(barDbName, vtSymbol, days);
-    }
+    void insertTick(TickPtr tick);
+    void insertBar(BarPtr bar);
+    void loadTick(int days);
+    void loadBar(int days);
 
-    void saveSyncData()
-    {
-        m_ctaEngine.saveSyncData(shared_from_this());
-    }
+    void saveSyncData();
 
-    double getPriceTick()
-    {
-        m_ctaEngine.getPriceTick(vtSymbol);
-    }
+    double getPriceTick();
+
+	int getEngineType;
 };
 
 typedef Strategy CtaTemplate;
@@ -152,7 +118,21 @@ typedef Strategy CtaTemplate;
 typedef Strategy* (*FUNCTION_createStrategyInstance)(const char* aInstanceName, const char* aStrategyClassName, CtaEngine* engine);
 typedef void (*FUNCTION_destroyStrategyInstance)(Strategy* aStrategyInstance);
 
-typedef void (*FUNCTION_strategyDeleter)(Strategy* aStrategyInstance, void* aHost);
+struct StrategyDeleter
+{
+	typedef void (*FUNCTION_strategyDeleter)(Strategy* aStrategyInstance, void* aHost);
+	FUNCTION_strategyDeleter df;
+	void* pr;
+
+	StrategyDeleter(FUNCTION_strategyDeleter d, void* p)
+		: df(d), pr(p)
+	{}
+
+	void operator()(Strategy* s)
+	{
+		df(s, pr);
+	}
+};
 
 //for the built-in strategy created by C++ keyword new
 inline 
@@ -164,8 +144,14 @@ void staticLibraryDestroyStrategyInstance(Strategy* p, void* aHost = NULL)
 //for the strategy created by FUNCTION_createStrategyInstance from DLL
 void dynamicLibraryDestroyStrategyInstance(Strategy* p, void* aHost);
 
-typedef std::shared_ptr<Strategy, FUNCTION_strategyDeleter> StrategyPtr;
+typedef std::shared_ptr<Strategy> StrategyPtr;
 
+template<class T>
+StrategyPtr makeStrategyPtr(const std::string& instanceName, CtaEngine& e, void* host)
+{
+	if(host) return std::shared_ptr<Strategy>(new T(instanceName, e), StrategyDeleter(&dynamicLibraryDestroyStrategyInstance, host));
+	else return std::shared_ptr<Strategy>(new T(instanceName, e), StrategyDeleter(&staticLibraryDestroyStrategyInstance, host));
+}
 
 
 
@@ -182,7 +168,7 @@ class StrategyLoaderForDynamicLibrary
 	protected:
 	//there may be more than a strategy in a DLL, using the strategy name to identity each other
 	Strategy* loadStrategy(const std::string& aInstanceName, const std::string& aStrategyClassName,
-     const std::string& aModuleName, CtaEngine& e)
+     const std::string& aModuleName, CtaEngine& engine)	
 	{
 		Strategy* r = nullptr;
 		#ifdef __linux__
@@ -201,11 +187,11 @@ class StrategyLoaderForDynamicLibrary
 			#endif
 			(handle, "createStrategyInstance");
 			if(createfn)
-				r = (Strategy*)createfn(aInstanceName, aStrategyClassName.c_str(), &engine);
+				r = (Strategy*)createfn(aInstanceName.c_str(), aStrategyClassName.c_str(), &engine);
 			if(r)
 			{
 				//to free the module
-				m_dllHandleDict.insert(std::make_pair(r->className, handle));
+				m_dllHandleDict.insert(std::make_pair(r->getClassName(), handle));
 			}
 		}
 		return r;
@@ -215,10 +201,11 @@ class StrategyLoaderForDynamicLibrary
 	{
 		if(s)
 		{
-			auto it = m_dllHandleDict.find(s->className);
+			auto it = m_dllHandleDict.find(s->getClassName());
 			if(it != m_dllHandleDict.end())
 			{
-				FUNCTION_destroyStrategyInstance destryFn = (FUNCTION_destroyStrategyInstance)
+				void* handle = it->second;
+				auto destroyFn = (FUNCTION_destroyStrategyInstance)
 				#ifdef __linux__
 				dlsym
 				#elif defined(__WINDOWS)
@@ -229,9 +216,9 @@ class StrategyLoaderForDynamicLibrary
 					destroyFn(s);
 
 				#ifdef __linux__
-				dlclose(it->second);
+				dlclose(handle);
 				#elif defined(__WINDOWS)
-				FreeLibrary(it->second);
+				FreeLibrary(handle);
 				#endif
 			}
 
@@ -242,7 +229,7 @@ class StrategyLoaderForDynamicLibrary
 	StrategyPtr load(const std::string& aInstanceName, const std::string& aStrategyClassName, 
     const std::string& aModuleName, CtaEngine& engine)
 	{
-		auto p = loadStrategy(aInstanceName, aStrategyName, aModuleName, engine);
+		auto p = loadStrategy(aInstanceName, aStrategyClassName, aModuleName, engine);
 		if(p)
 			return StrategyPtr(p, &dynamicLibraryDestroyStrategyInstance);
 		else
@@ -256,7 +243,7 @@ void dynamicLibraryDestroyStrategyInstance(Strategy* p, void* aHost)
 	auto h = (StrategyLoaderForDynamicLibrary*)aHost;
 	if(h)
 	{
-		h->freeStrategy(s);
+		h->freeStrategy(p);
 	}
 }
 
@@ -292,10 +279,14 @@ class TargetPosTemplate : public CtaTemplate
 	BarPtr m_lastBar;		//K-line item
 
 	public:
-	TargetPosTemplate(const std::string& instanceName, CtaEngine& e
-	, const boost::property_tree::ptree& aParameters) 
-	: CtaTemplate(instanceName, "TargetPosTemplate", e, aParameters)
+	TargetPosTemplate(const std::string& instanceName, CtaEngine& e)
+	: CtaTemplate(instanceName, e)
 	{}
+
+	virtual const std::string getClassName()
+	{
+		return "TargetPosTemplate";
+	}
 
 	void setTargetPosition(int targetPos)
 	{
@@ -303,96 +294,7 @@ class TargetPosTemplate : public CtaTemplate
 		trade();
 	}
 
-	void trade()
-	{
-		if(!m_orderList.empty())
-			cancelAll();
-		else
-		{
-			int posChange = m_targetPosition - position;
-			if(posChange == 0)
-				return;
-
-			double longPrice = 0;
-			double shortPrice = 0;
-
-			if(m_lastTick)
-			{
-				if(posChange > 0)
-				{
-					longPrice = m_lastTick.askPrice[0] + m_tickAdd;
-					if(m_lastTick.upperLimit)
-						longPrice = std::min(longPrice, m_lastTick.upperLimit);
-				}
-				else
-				{
-					shortPrice = m_lastTick.bidPrice[0] - m_tickAdd;
-					if(m_lastTick.lowerLimit)
-						shortPrice = std::max(shortPrice, m_lastTick.lowerLimit);
-				}
-			}
-			else if(m_lastBar)
-			{
-				if(posChange > 0)
-					longPrice = m_lastBar.close + m_tickAdd;
-				else
-					shortPrice = m_lastBar.close - m_tickAdd;
-			}
-			else
-			{
-				//do nothing
-			}
-		
-
-			if(getEngineType() == ENGINETYPE_BACKTESTING)
-			{
-				if(posChange > 0)
-				{
-					auto id = buy(longPrice, posChange);
-					m_orderList.insert(id);
-				}
-				else
-				{
-					auto id = short(shortPrice, -posChange);
-					m_orderList.insert(id);
-				}
-			}
-			else
-			{
-				if(posChange > 0)
-				{
-					if(position < 0)
-					{
-						auto posCover = std::min(posChange, -position);
-						auto id = cover(longPrice, posCover);
-						m_orderList.insert(id);
-					}
-					else
-					{
-						auto posBuy = posChange;
-						auto id = buy(longPrice, posBuy);
-						m_orderList.insert(id);
-					}
-				}
-				else
-				{
-					if(position > 0)
-					{
-						auto posSell = std::min(-posChange, position);
-						auto id = sell(shortPrice, posSell);
-						m_orderList.insert(id);
-					}
-					else
-					{
-						auto posShort = posChange;
-						auto id = buy(shortPrice, posShort);
-						m_orderList.insert(id);
-					}
-				}
-			}
-		}
-	}
-
+	void trade();
     virtual void onTick(TickPtr tick)
 	{
 		m_lastTick = tick;
@@ -401,7 +303,7 @@ class TargetPosTemplate : public CtaTemplate
 	}
     virtual void onOrder(OrderPtr o)
 	{
-		if(o->status == STATUS_ALLTRADED || O->status == STATUS_CANCELLED)
+		if(o->status == STATUS_ALLTRADED || o->status == STATUS_CANCELLED)
 		{
 			auto i = m_orderList.find(o->vtOrderID);
 			if(i != m_orderList.cend())
@@ -419,7 +321,7 @@ class TargetPosTemplate : public CtaTemplate
     virtual void onStopOrder(StopOrderPtr)
 	{}
 	
-}
+};
 
 
 #include <time.h>
@@ -435,13 +337,6 @@ bool isInMinuteRange(time_t t1, time_t t2, int aMinute)
 	return (diff / 60 < aMinute);
 }
 
-class Bar
-{
-	public:
-	time_t datetime;
-
-	public:
-}
 
 
 
@@ -504,7 +399,7 @@ public:
 
 		if(m_lastTick)
 		{
-			volumeChange = tick.ttv - m_lastTick->ttv;
+			auto volumeChange = tick->totalVolume - m_lastTick->totalVolume;
 			bar->volume += std::max(volumeChange, 0);
 		}
 		m_lastTick = tick;
@@ -529,7 +424,7 @@ public:
 		{
 			m_xminuteBar->close = bar->close;
 			m_xminuteBar->openInterest = bar->openInterest;
-			m_minuteBar->volume += bar->volume;
+			m_xminuteBar->volume += bar->volume;
 		}
 		
 		struct tm* lt = localtime(&(m_xminuteBar->datetime));
@@ -537,7 +432,7 @@ public:
 		{
 			m_xminuteBar->datetime = m_xminuteBar->datetime / 60 * 60;
 
-			std::shared_ptr<Bar> bar;
+			BarPtr bar;
 			std::swap(bar, m_xminuteBar);
 			onXminuteBar(bar);
 		}
@@ -547,18 +442,21 @@ public:
 	{
 		std::shared_ptr<Bar> bar;
 		std::swap(bar, this->bar);
-		onBar(bar)
+		onBar(bar);
 	}
+
+	void onXminuteBar(BarPtr)
+	{}
 };
 
-
+/*
 class ArrayManager
 {
-	/*
+	// *
     K线序列管理工具，负责：
     1. K线时间序列的维护
     2. 常用技术指标的计算
-	*/
+	* /
 public:
 	int count;
 	int size;
@@ -575,11 +473,11 @@ public:
 
 
 	public:
-	void sma(n)
+	void sma(int n)
 	{
 		//return TA_SMA();
 	}
 };
 
-
+*/
 

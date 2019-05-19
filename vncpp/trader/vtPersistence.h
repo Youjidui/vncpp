@@ -118,7 +118,7 @@ public:
     void dbLogging(Event e)
     {
 		/*
-        auto log = e.dict;
+        auto log = std::dynamic_pointer_cast<Log>(e.dict);
         bsoncxx::document::value doc_value = bsoncxx::builder
         << "content" << log->logContent
         << "time" << log->logTime

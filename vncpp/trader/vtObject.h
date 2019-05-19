@@ -4,8 +4,12 @@
 #include <time.h>
 #include <string>
 #include <memory>
+#include <float.h>
 #include "eventData.h"
 
+
+//invalid price: DBL_MIN
+//invalid volume: ULONG_MAX
 
 typedef std::string Symbol;
 typedef std::string OrderID;
@@ -55,24 +59,24 @@ struct _Tick
 
 struct _Bar
 {
-	double openPrice;
-	double highPrice;
-	double lowPrice;
-	double closePrice;		//preClosePrice
+	double open;
+	double high;
+	double low;
+	double close;		//preClosePrice
 
 	_Bar(){}
 	_Bar(double o, double h, double l, double c)
-	: openPrice(o), highPrice(h), lowPrice(l), closePrice(c)
+	: open(o), high(h), low(l), close(c)
 	{}
 };
 
 struct _PriceLimit
 {
-	double upperLimitPrice;
-	double lowerLimitPrice;
+	double upperLimit;
+	double lowerLimit;
 };
 
-
+/*
 struct _MarketDepthItem
 {
 	int volume;
@@ -84,6 +88,15 @@ struct _MarketDepth
 {
 	std::vector<_MarketDepthItem> ask;
 	std::vector<_MarketDepthItem> bid;
+};
+*/
+
+struct _MarketDepth
+{
+	double askPrice[5];
+	int askVolume[5];
+	double bidPrice[5];
+	int bidVolume[5];
 };
 
 struct Tick : public EventData, public _Contract, public _Timestamp, public _Tick, public _Bar, public _PriceLimit, public _MarketDepth
@@ -100,7 +113,7 @@ typedef std::shared_ptr<Tick> TickPtr;
 
 struct Bar : public EventData, public _Contract, public _Timestamp, public _Bar
 {
-	int totalVolume;
+	int volume;
 	int openInterest;
 	int interval;		//time interval for k-line bar
 
@@ -108,7 +121,7 @@ struct Bar : public EventData, public _Contract, public _Timestamp, public _Bar
 	Bar(const std::string& sym, const std::string& ex, const std::string& gw, 
 			time_t tm, double open, double high, double low, double close, int ttv, int openItr, int interval)
 		: _Contract(sym, ex, gw), _Timestamp(tm), _Bar(open, high, low, close), 
-		totalVolume(ttv), openInterest(openItr), interval(interval)
+		volume(ttv), openInterest(openItr), interval(interval)
 	{}
 };
 
@@ -131,6 +144,23 @@ struct Trade : public EventData, public _Contract, public _Timestamp
 typedef std::shared_ptr<Trade> TradePtr;
 
 
+
+enum ORDER_STATUS
+{
+	STATUS_NOTTRADED,
+	STATUS_PARTTRADED,
+	STATUS_ALLTRADED,
+	STATUS_CANCELLED,
+	STATUS_REJECTED,
+	STATUS_UNKNOWN
+};
+
+enum DIRECTION
+{
+	DIRECTION_LONG = 0,
+	DIRECTION_SHORT
+};
+
 struct Order : public EventData, public _Contract, public _Timestamp
 {
 	std::string orderID;
@@ -143,6 +173,11 @@ struct Order : public EventData, public _Contract, public _Timestamp
 	int tradedVolume;
 	int status;
 
+	bool isActive()
+	{
+		return STATUS_NOTTRADED == status || STATUS_PARTTRADED == status;
+		//return STATUS_ALLTRADED != status && STATUS_CANCELLED != status && STATUS_REJECTED != status;
+	}
 };
 
 typedef std::shared_ptr<Order> OrderPtr;

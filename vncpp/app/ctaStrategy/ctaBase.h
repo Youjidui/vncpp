@@ -10,44 +10,27 @@
 #include <iostream>
 #include "logging.h"
 #include "eventEngine.h"
+#include "vtObject.h"
 
 
-typedef std::string OrderID;
 typedef OrderID StopOrderID;
 
 
 class Strategy;
 
 
-class Order
+
+enum CTA_ORDER_TYPE
 {
-    public:
-    std::string orderID;        //exchange
-    std::string vtOrderID;      //vncpp
-    std::string symbol;         //exchange
-    std::string vtSymbol;       //vncpp
-    int direction;
-    int offset;
-    double price;
-    int totalVolume;
-    int tradedVolume;
-    int status;
-    time_t dt;
+	CTAORDER_BUY = 0,
+	CTAORDER_SELL,
+	CTAORDER_SHORT,
+	CTAORDER_COVER
 };
 
-class Trade
+enum STOP_ORDER_STATUS
 {
-    public:
-    std::string tradeID;        //exchange
-    std::string vtTradeID;      //vncpp 
-    std::string vtSymbol;       //vncpp
-    std::string orderID;
-    int direction;
-    int offset;
-    double price;
-    int volume;
-    time_t dt;
-
+	STOPORDER_TRIGGERED = 100
 };
 
 class StopOrder
@@ -57,7 +40,7 @@ class StopOrder
     int orderType;
     int direction;
     int offset;
-    double price;
+    double stopPrice;
     int volume;
 
     Strategy& strategy;

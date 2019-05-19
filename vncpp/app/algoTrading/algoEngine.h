@@ -51,7 +51,7 @@ public:
 
 	void processTickEvent(Event e)
 	{
-		auto tick = e.dict;
+		auto tick = std::dynamic_pointer_cast<Tick>(e.dict);
         auto i = symbolAlgoDict.find(tick->vtSymbol);
         if(i != symbolAlgoDict.end())
         {
@@ -64,7 +64,7 @@ public:
 
     void processOrderEvent(Event e)
     {
-        auto o = e.dict;
+        auto o = std::dynamic_pointer_cast<Order>(e.dict);
         auto i = orderAlgoDict.find(o->vtOrderID);
         if(i != orderAlgoDict.end())
         {
@@ -74,7 +74,7 @@ public:
 
     void processTradeEvent(Event e)
     {
-        auto t = e.dict;
+        auto t = std::dynamic_pointer_cast<Trade>(e.dict);
         auto i = orderAlgoDict.find(t->vtOrderID);
         if(i != orderAlgoDict.end())
         {
