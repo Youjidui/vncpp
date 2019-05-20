@@ -1,9 +1,9 @@
 #include "ctaEngine.h"
 
 
-CtaEnginePtr ctaEngine(EventEnginePtr e)
+CtaEnginePtr ctaEngine(EventEnginePtr e, MainEnginePtr m)
 {
-	return std::make_shared<CtaEngine>(e);
+	return std::make_shared<CtaEngine>(e, m);
 }
 
 

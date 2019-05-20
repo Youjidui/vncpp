@@ -5,6 +5,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/data)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/event)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/trader)
 
+message(STATUS "${Boost_LIBRARIES}")
+
 aux_source_directory(. src)
 
 add_executable(ctaTrading ${src})

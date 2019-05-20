@@ -128,7 +128,7 @@ public:
 
 		for(auto j : appDict)
 		{
-			j.second->stop();
+			j.second->stopAll();
 		}
 
 		dataEngine->saveContracts();

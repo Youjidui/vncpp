@@ -5,29 +5,25 @@
 #include "eventEngine.h"
 #include "vtEngine.h"
 #include "ctp/ctpGateway.h"
-//#include "ctaStrategy/ctaEngine.h"
-#include "ctaStrategy/ctaStrategy.h"
-
-void on_error(uint32_t code, std::string const& text)
-{
-	LOG_ERROR << code << text;
-}
+#include "ctaStrategy/ctaEngine.h"
 
 
-void run_child_process()
+
+int main()
 {
 	printf( "---------------------------\n");
 
 	LOG_INFO << "start CTA strategy child process\n";
 
 	auto ee = eventEngine();
+	ee->start(true);
 	LOG_INFO << ("start event engine");
 
 	auto me = mainEngine(ee);
 	auto gw = ctpGateway("CTP", ee);
 	me->addGateway(gw);
-	auto stg = ctaStrategy(me, ee);
-	me->addApp(stg);
+	auto cta = ctaEngine(ee, me);
+	me->addApp(cta);
 	LOG_INFO << ("start main engine");
 
 	//gw->subscribe(std::bind(&MainEngine::on_message, me),
@@ -36,7 +32,28 @@ void run_child_process()
 	gw->connect();
 	LOG_INFO << ("start CTP gateway");
 
-	
+	cta->loadSettings("./catSettings.json");
+	LOG_INFO << ("load CTA settings");
 
+	cta->initAll();
+	LOG_INFO << "init CTA";
+
+	cta->startAll();
+	LOG_INFO << "start CTA";
+
+	ee->run();
+
+	while(true)
+	{
+		char c = getchar();
+		if(c == 'q')
+			break;
+	}
+
+	cta->stopAll();
+	ee->stop();
+
+	return 0;
 }
+
 

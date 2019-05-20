@@ -19,8 +19,11 @@ class App
 	{}
 	virtual ~App() {}
 
-	virtual bool start() = 0;
-	virtual void stop() = 0;
+	virtual void loadSettings(const std::string& filePath) = 0;
+	virtual void saveSettings(const std::string& filePath) = 0;
+	virtual void initAll() = 0;
+	virtual void startAll() = 0;
+	virtual void stopAll() = 0;
 };
 
 

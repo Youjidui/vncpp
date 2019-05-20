@@ -23,24 +23,33 @@ class EventLoop
 	std::unique_ptr<boost::asio::io_context::work> m_donothing;
 	std::unique_ptr<std::thread> m_worker;
 
-	void run()
+	void internalRun()
 	{
 		m_context->run();
 	}
 
 	public:
-	void start()
+	void start(bool subThread = false)
 	{
 		m_context.reset(new boost::asio::io_context);
 		m_donothing.reset(new boost::asio::io_context::work(*m_context.get()));
-		m_worker.reset(new std::thread(std::bind(&EventLoop::run, this)));
+		if(subThread)
+			m_worker.reset(new std::thread(std::bind(&EventLoop::internalRun, this)));
+	}
+
+	void run()
+	{
+		if(m_worker)	return;
+		else internalRun();
 	}
 
 	void stop()
 	{
 		m_donothing.reset();
-		m_context->stop();
-		m_worker->join();
+		if(m_context)
+			m_context->stop();
+		if(m_worker)
+			m_worker->join();
 	}
 
 	template<typename FUNCTION>

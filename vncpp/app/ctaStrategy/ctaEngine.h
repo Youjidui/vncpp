@@ -14,6 +14,7 @@
 #include "vtEngine.h"
 //#include "vtPersistence.h"
 #include "ctaTemplate.h"
+#include "vtApp.h"
 
 
 enum ENGINE_TYPE
@@ -23,7 +24,7 @@ enum ENGINE_TYPE
 };
 
 
-class CtaEngine
+class CtaEngine : public App
 {
 protected:
 	EventEnginePtr m_ee;
@@ -41,11 +42,11 @@ public:
 	typedef std::string StrategyInstanceName;
 	std::map<StrategyInstanceName, StrategyPtr> m_strategyDict;
 	std::set<std::string> m_tradeSet;
-	std::string m_settingfilePath;
 
 public:
 	CtaEngine(EventEnginePtr ee, MainEnginePtr m) 
-		: m_ee(ee), mainEngine(m)
+		: App("CTA", "CTA Strategy") 
+		, m_ee(ee), mainEngine(m)
 	{
 		registerEvent();
 	}
@@ -324,20 +325,36 @@ public:
 		}
 	}
 
-	void saveSetting()
+	void startAll()
+	{
+		for(auto i : m_strategyDict)
+		{
+			startStrategy(i.first);
+		}
+	}
+
+	void stopAll()
+	{
+		for(auto i : m_strategyDict)
+		{
+			stopStrategy(i.first);
+		}
+	}
+
+	void saveSettings(const std::string& filePath)
 	{
 		boost::property_tree::ptree ptall;
 		for(auto i : m_strategyDict)
 		{
 			ptall.put_child(i.first, *(i.second->parameters));
 		}
-		boost::property_tree::json_parser::write_json(m_settingfilePath, ptall);
+		boost::property_tree::json_parser::write_json(filePath, ptall);
 	}
 
-	void loadSetting()
+	void loadSettings(const std::string& filePath)
 	{
 		boost::property_tree::ptree ptall;
-		boost::property_tree::json_parser::read_json(m_settingfilePath, ptall);
+		boost::property_tree::json_parser::read_json(filePath, ptall);
 
 		for(auto i : m_strategyDict)
 		{
@@ -369,5 +386,5 @@ public:
 
 typedef std::shared_ptr<CtaEngine> CtaEnginePtr;
 
-extern CtaEnginePtr ctaEngine(EventEnginePtr e);
+extern CtaEnginePtr ctaEngine(EventEnginePtr e, MainEnginePtr m);
 
