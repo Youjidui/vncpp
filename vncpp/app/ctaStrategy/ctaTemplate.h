@@ -109,7 +109,7 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 
     double getPriceTick();
 
-	int getEngineType;
+	int getEngineType();
 };
 
 typedef Strategy CtaTemplate;

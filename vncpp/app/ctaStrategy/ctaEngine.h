@@ -56,7 +56,7 @@ public:
 		return engineType;
 	}
 
-	protected:
+public:
 	OrderID sendOrder(std::string const& vtSymbol, int orderType, double price, int volume, Strategy& strategy)
 	{
 	}
@@ -68,7 +68,7 @@ public:
 	{
 	}
 
-	OrderID sendStopOrder(std::string const& vtSymbol, int orderType, double price, double stopPrice, int volume, StrategyPtr strategy)
+	OrderID sendStopOrder(std::string const& vtSymbol, int orderType, double price, int volume, StrategyPtr strategy)
 	{
 	}
 
@@ -207,15 +207,19 @@ public:
 		m_ee->register_(EVENT_TRADE, std::bind(&CtaEngine::processTradeEvent, this, std::placeholders::_1));
 	}
 
-	void insertData() 
+	void insertData(const std::string& dbName, const std::string& vtSymbol, BarPtr) 
 	{
 	}
 
-	void loadBar()
+	void insertData(const std::string& dbName, const std::string& vtSymbol, TickPtr) 
 	{
 	}
 
-	void loadTick()
+	void loadBar(const std::string& dbName, const std::string& vtSymbol, int days)
+	{
+	}
+
+	void loadTick(const std::string& dbName, const std::string& vtSymbol, int days)
 	{
 	}
 

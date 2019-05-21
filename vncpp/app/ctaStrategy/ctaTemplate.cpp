@@ -6,7 +6,7 @@ const std::string stopOrderPrefix("STOP_");
 
 inline bool isStopOrderID(const OrderID& id)
 {
-	return (strcmp(stopOrderPrefix.c_str(), id.c_str(), stopOrderPrefix.length()) == 0);
+	return (strncmp(stopOrderPrefix.c_str(), id.c_str(), stopOrderPrefix.length()) == 0);
 }
 
 OrderID Strategy::sendOrder(int orderType, double price, int volume, bool stopOrder)
@@ -38,7 +38,7 @@ void Strategy::insertTick(TickPtr tick)
 }
 void Strategy::insertBar(BarPtr bar)
 {
-	m_ctaEngine.insertData(BarDbName, vtSymbol, bar);
+	m_ctaEngine.insertData(barDbName, vtSymbol, bar);
 }
 void Strategy::loadTick(int days)
 {
