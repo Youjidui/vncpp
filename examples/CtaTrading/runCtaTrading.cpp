@@ -32,7 +32,7 @@ int main()
 	gw->connect();
 	LOG_INFO << ("start CTP gateway");
 
-	cta->loadSettings("./catSettings.json");
+	cta->loadSettings("./ctaSettings.json");
 	LOG_INFO << ("load CTA settings");
 
 	cta->initAll();
