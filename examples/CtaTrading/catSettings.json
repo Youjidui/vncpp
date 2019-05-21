@@ -1,0 +1,14 @@
+{
+	"strategy1" : 
+	{
+		"parameter1" : true ,
+		"parameter2" : 1
+	} ,
+
+	"strategy2" : 
+	{
+		"parameter1" : false ,
+		"parameter2" : 2
+	}
+}
+
