@@ -1,3 +1,4 @@
 ADD_SUBDIRECTORY(CtaTrading)
+ADD_SUBDIRECTORY(CtaBacktesting)
 
 

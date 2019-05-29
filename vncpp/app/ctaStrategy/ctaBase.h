@@ -15,9 +15,11 @@
 
 typedef OrderID StopOrderID;
 
+const char * const  STOPORDERPREFIX = "SO_";
+
 
 class Strategy;
-
+typedef std::shared_ptr<Strategy> StrategyPtr;
 
 
 enum CTA_ORDER_TYPE
@@ -30,22 +32,27 @@ enum CTA_ORDER_TYPE
 
 enum STOP_ORDER_STATUS
 {
-	STOPORDER_TRIGGERED = 100
+	STOPORDER_TRIGGERED = 100,
+	STOPORDER_CANCELLED,
+	STOPORDER_WAITING
 };
 
-class StopOrder
+struct StopOrder
 {
 	public:
 	std::string vtSymbol;
+	std::string symbol;
     int orderType;
     int direction;
     int offset;
     double stopPrice;
     int volume;
 
-    Strategy& strategy;
+	StrategyPtr strategy;
     StopOrderID stopOrderID;
     int status;
+
+public:
 };
 
 typedef std::shared_ptr<StopOrder> StopOrderPtr;

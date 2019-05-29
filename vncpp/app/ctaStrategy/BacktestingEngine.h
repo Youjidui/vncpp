@@ -4,10 +4,13 @@
 #include <stdio.h>
 #include <cmath>
 #include <map>
-#include <bsoncxx/json.hpp>
-#include <mongocxx/client.hpp>
-#include <mongocxx/stdx.hpp>
-#include <mongocxx/uri.hpp>
+//#include <bsoncxx/json.hpp>
+//#include <mongocxx/client.hpp>
+//#include <mongocxx/stdx.hpp>
+//#include <mongocxx/uri.hpp>
+#include "ctaBase.h"
+#include "ctaTemplate.h"
+#include "vtPersistence.h"
 
 
 inline 
@@ -32,25 +35,78 @@ class TradingResult
 
     TradingResult(double entryPx, time_t entryDt, double exitPx, time_t exitDt,
     int volume, double rate, double slippage, double size)
-    : this->entryPrice(entryPx)
-    , this->exitPrice(exitPx)
-    , this->entryDt(entryDt)
-    , this->exitDt(exitDt)
-    , this->volume(volume)
-    , this->turnover((entryPx + exitPx)*size*abs(volume))
-    , this->commission(this->turnover*rate)
-    , this->slippage(slippage*2*size*abs(volume))
-    , this->pnl((exitPx - entryPx)*volume*size - this->commission - this->slippage)
+    : entryPrice(entryPx)
+    , exitPrice(exitPx)
+    , entryDt(entryDt)
+    , exitDt(exitDt)
+    , volume(volume)
+    , turnover((entryPx + exitPx)*size*abs(volume))
+    , commission(this->turnover*rate)
+    , slippage(slippage*2*size*abs(volume))
+    , pnl((exitPx - entryPx)*volume*size - this->commission - this->slippage)
     {}
-}
+};
 
+
+class DailyResult
+{
+public:
+	time_t date;
+	double closePrice;
+	double previousClose;
+	std::list<TradePtr> tradeList;
+	int openPosition;
+	int closePosition;
+	double tradingPnl;
+	double positionPnl;
+	double totalPnl;
+
+	int turnover;
+	double commission;
+	double slippage;
+	double netPnl;
+
+public:
+	DailyResult(time_t d, double closePx)
+		: date(d), closePrice(closePx)
+	{}
+
+	void addTrade(TradePtr t)
+	{
+		tradeList.push_back(t);
+	}
+
+	void calculatePnl(int openPosition = 0, int contractSize = 1, double commissionRate = 0, double slippage = 0)
+	{
+		this->openPosition  = openPosition;
+		this->positionPnl = openPosition * (closePrice - previousClose) * contractSize;
+		closePosition = openPosition;
+
+		auto tradeCount = tradeList.size();
+		for(auto t : tradeList)
+		{
+			auto posChange = (t->direction == DIRECTION_LONG) ? t->volume : -(t->volume);
+			this->tradingPnl += posChange * (closePrice - t->price) * contractSize;
+			this->closePosition += posChange;
+			this->turnover += t->price * t->volume * contractSize;
+			this->commission += t->price * t->volume * contractSize * commissionRate;
+			this->slippage += t->volume * contractSize * slippage;
+		}
+
+		totalPnl = tradingPnl + positionPnl;
+		netPnl = totalPnl - commission - slippage;
+	}
+};
 
 class BackTestingResult
 {
-    public:
+public:
     double capital;
     double maxCapital;
     double drawdown;
+
+	double contractSize;
+	double commissionRate;
 
     int totalResult;
     double totalTurnover;
@@ -108,8 +164,8 @@ class BacktestingEngine
     从而实现同一套代码从回测到实盘。
     */
 public:
-    const char* TICK_MODE = 'tick';
-    const char* BAR_MODE = 'bar';
+    const char* TICK_MODE = "tick";
+    const char* BAR_MODE = "bar";
 
     public:
     int engineType;
@@ -121,8 +177,8 @@ public:
 
     StrategyPtr strategy;
     std::string mode;
-    time_t startDate;
-    time_t endDate;
+	std::string startDate;
+	std::string endDate;
     int initDays;
 
     double capital;
@@ -131,11 +187,13 @@ public:
     double contractSize;
     double priceTick;
 
-    std::shared_ptr<mongocxx::client> dbClient;
-    std::shared_ptr<mongocxx::cursor> dbCursor;
-    std::shared_ptr<RpcClient> hasClient;
+    //std::shared_ptr<mongocxx::client> dbClient;
+    //std::shared_ptr<mongocxx::cursor> dbCursor;
+    //std::shared_ptr<RpcClient> hasClient;
+	PersistenceEnginePtr m_pe;
 
-    std::vector<> initData;
+    std::vector<TickPtr> m_initTickData;
+	std::vector<BarPtr> m_initBarData;
     std::string dbName;
     std::string symbol;
 
@@ -154,7 +212,7 @@ public:
     BarPtr m_bar;
     time_t m_dt;
 
-    std::map<std::string, > dailyResultDict;
+    std::map<date_t, DailyResult> dailyResultDict;
 
 public:
     BacktestingEngine()
@@ -187,12 +245,12 @@ public:
     {
         auto reqAddress = "tcp://localhost:5555";
         auto subAddress = "tcp://localhost:7777";
-        hdsClient = std::make_shared<RpcClient>(reqAddress, subAddress);
-        hdsClient->start();
+        //hdsClient = std::make_shared<RpcClient>(reqAddress, subAddress);
+        //hdsClient->start();
     }
 
     void loadHistoryData()
-    {
+    {/*
         mongocxx::uri uri("mongodb://localhost:27017");
         auto dbClient = std::make_shared<mongocxx::client>(uri);
         auto collection = dbClient[dbName][symbol];
@@ -259,7 +317,7 @@ public:
             
         }
 
-
+*/
     }
 
 
@@ -273,8 +331,8 @@ public:
 
         strategy->start();
         strategy->onStart();
-
-        for(d : dbCursor)
+		/*
+        for(auto d : dbCursor)
         {
             if(mode == BAR_MODE)
             {
@@ -288,8 +346,8 @@ public:
                 loadFromDB(d, tick);
                 newTick(tick);
             }
-
         }
+		*/
     }
 
     void newBar(BarPtr bar)
@@ -297,8 +355,8 @@ public:
         m_bar = bar;
         m_dt = bar->datetime;
 
-        crossLimitOrder();
-        crossStopOrder();
+        crossLimitOrder(bar);
+        crossStopOrder(bar);
         strategy->onBar(bar);
         updateDailyClose(bar->datetime, bar->close);
     }
@@ -308,11 +366,25 @@ public:
         m_tick = t;
         m_dt = t->datetime;
 
-        crossLimitOrder();
-        crossStopOrder();
+        crossLimitOrder(t);
+        crossStopOrder(t);
         strategy->onTick(t);
         updateDailyClose(t->datetime, t->lastPrice);
     }
+
+	void updateDailyClose(time_t dt, double price)
+	{
+		auto date = dateFrom(dt);
+		auto i = dailyResultDict.find(date);
+		if(i == dailyResultDict.end())
+		{
+			dailyResultDict.insert(std::make_pair(date, DailyResult(date, price)));
+		}
+		else
+		{
+			dailyResultDict[date].closePrice = price;
+		}
+	}
 
     void initStrategy(StrategyPtr s)
     {
@@ -341,7 +413,7 @@ public:
     double buyBestCrossPrice, double sellBestCrossPrice)
     {
         for(auto i = workingLimitOrderDict.begin(); 
-        i != workingLimitOrderDict.end() ++i)
+        i != workingLimitOrderDict.end(); ++i)
         {
             auto orderID = i->first;
             auto o = i->second;
@@ -374,7 +446,7 @@ public:
                     strategy->position -= o->totalVolume;
                 }
                 t->volume = o->totalVolume;
-                t->dt = m_dt;
+                t->datetime = m_dt;
                 
                 strategy->onTrade(t);
                 tradeDict[str] = t;
@@ -408,15 +480,15 @@ public:
     void crossStopOrder_(double buyCrossPrice, double sellCrossPrice, double bestCrossPrice)
     {
         for(auto i = workingStopOrderDict.begin(); 
-        i != workingStopOrderDict.end() ++i)
+        i != workingStopOrderDict.end(); ++i)
         {
             auto orderID = i->first;
             auto so = i->second;
 
             auto buyCross = (so->direction == DIRECTION_LONG &&
-            so->price <= buyCrossPrice);
+            so->stopPrice <= buyCrossPrice);
             auto sellCross = (so->direction == DIRECTION_SHORT &&
-            so->price >= sellCrossPrice);
+            so->stopPrice >= sellCrossPrice);
 
             if(buyCross || sellCross)
             {
@@ -434,10 +506,10 @@ public:
                 no->vtSymbol = so->vtSymbol;
                 no->direction = so->direction;
                 no->offset = so->offset;
-                no->price = so->price;
+                no->price = so->stopPrice;
                 no->totalVolume = so->volume;
                 no->status = STATUS_ALLTRADED;
-                no->dt = m_dt;
+                no->datetime = m_dt;
 
                 limitOrderDict[str] = no;
 
@@ -450,12 +522,12 @@ public:
 
                 if(buyCross)
                 {
-                    t->price = std::max(so->price, bestCrossPrice);
+                    t->price = std::max(so->stopPrice, bestCrossPrice);
                     strategy->position += so->volume;
                 }
                 else
                 {
-                    t->price = std::min(so->price, bestCrossPrice);
+                    t->price = std::min(so->stopPrice, bestCrossPrice);
                     strategy->position -= so->volume;
                 }
 
@@ -464,7 +536,7 @@ public:
                 t->offset = no->offset;
 
                 t->volume = no->totalVolume;
-                t->dt = m_dt;
+                t->datetime = m_dt;
                 
                 strategy->onTrade(t);
                 tradeDict[str] = t;
@@ -487,27 +559,34 @@ public:
         no->orderID = str;
         no->vtOrderID = str;
         no->vtSymbol = vtSymbol;
-        no->price = roundToPriceTick(price);
+        no->price = roundToPriceTick(price, getPriceTick(s));
         no->totalVolume = volume;
         no->status = STATUS_NEW;
-        no->dt = m_dt;
+        no->datetime = m_dt;
 
-        if orderType == CTAORDER_BUY:
-            no->direction = DIRECTION_LONG
-            no->offset = OFFSET_OPEN
-        else if orderType == CTAORDER_SELL:
-            no->direction = DIRECTION_SHORT
-            no->offset = OFFSET_CLOSE
-        else if orderType == CTAORDER_SHORT:
-            no->direction = DIRECTION_SHORT
-            no->offset = OFFSET_OPEN
-        else if orderType == CTAORDER_COVER:
-            no->direction = DIRECTION_LONG
-            no->offset = OFFSET_CLOSE     
-
+        if (orderType == CTAORDER_BUY)
+		{
+            no->direction = DIRECTION_LONG;
+            no->offset = OFFSET_OPEN;
+		}
+        else if (orderType == CTAORDER_SELL)
+		{
+            no->direction = DIRECTION_SHORT;
+            no->offset = OFFSET_CLOSE;
+		}
+        else if (orderType == CTAORDER_SHORT)
+		{
+            no->direction = DIRECTION_SHORT;
+            no->offset = OFFSET_OPEN;
+		}
+        else if (orderType == CTAORDER_COVER)
+		{
+            no->direction = DIRECTION_LONG;
+            no->offset = OFFSET_CLOSE;
+		}
 
         limitOrderDict[str] = no;
-        workingLimitOrderDict[str] = no
+        workingLimitOrderDict[str] = no;
         return str;
     }
 
@@ -530,24 +609,32 @@ public:
         sprintf(str,"%s%x", STOPORDERPREFIX, ++stopOrderCount);
         auto so = std::make_shared<StopOrder>();
         so->vtSymbol = vtSymbol;
-        so->price = roundToPriceTick(price);
+        so->stopPrice = roundToPriceTick(price, getPriceTick(s));
         so->volume = volume;
         so->strategy = s;
         so->status = STOPORDER_WAITING;
         so->stopOrderID = str;
 
-        if orderType == CTAORDER_BUY:
-            so->direction = DIRECTION_LONG
-            so->offset = OFFSET_OPEN
-        else if orderType == CTAORDER_SELL:
-            so->direction = DIRECTION_SHORT
-            so->offset = OFFSET_CLOSE
-        else if orderType == CTAORDER_SHORT:
-            so->direction = DIRECTION_SHORT
-            so->offset = OFFSET_OPEN
-        else if orderType == CTAORDER_COVER:
-            so->direction = DIRECTION_LONG
-            so->offset = OFFSET_CLOSE
+        if (orderType == CTAORDER_BUY)
+		{
+            so->direction = DIRECTION_LONG;
+            so->offset = OFFSET_OPEN;
+		}
+        else if (orderType == CTAORDER_SELL)
+		{
+            so->direction = DIRECTION_SHORT;
+            so->offset = OFFSET_CLOSE;
+		}
+        else if (orderType == CTAORDER_SHORT)
+		{
+            so->direction = DIRECTION_SHORT;
+            so->offset = OFFSET_OPEN;
+		}
+        else if (orderType == CTAORDER_COVER)
+		{
+            so->direction = DIRECTION_LONG;
+            so->offset = OFFSET_CLOSE;
+		}
 
         stopOrderDict[str] = so;
         workingStopOrderDict[str] = so;
@@ -562,7 +649,7 @@ public:
         if(i != workingStopOrderDict.end())
         {
             auto& so = i->second;
-            so->status = STOPORDER_CANCELLED
+            so->status = STOPORDER_CANCELLED;
             strategy->onStopOrder(so);
             workingStopOrderDict.erase(i);
         }
@@ -576,12 +663,12 @@ public:
 
     std::vector<BarPtr>& loadBar(const std::string& dbName, const std::string& collectionName, const std::string& startDate)
     {
-        return initData;
+        return m_initBarData;
     }
 
     std::vector<TickPtr>& loadTick(const std::string& dbName, const std::string& collectionName, const std::string& startDate)
     {
-        return initData;
+        return m_initTickData;
     }
 
     void cancelAll()
@@ -615,7 +702,7 @@ public:
         for(auto i : tradeDict)
         {
             auto t = *(i.second);
-            if(t->direction == DIRECTION_LONG)
+            if(t.direction == DIRECTION_LONG)
             {
                 if(shortTrade.empty())
                 {
@@ -629,9 +716,9 @@ public:
                         auto& exitTrade = t;
 
                         auto closedVolume = std::min(exitTrade.volume, entryTrade.volume);
-                        auto result = TradingResult(entryTrade.price, entryTrade.dt,
-                        exitTrade.price, exitTrade.dt, -closedVolume,
-                        rate, slippage, size);
+                        auto result = TradingResult(entryTrade.price, entryTrade.datetime,
+                        exitTrade.price, exitTrade.datetime, -closedVolume,
+                        rate, slippage, contractSize);
                         resultList.push_back(result);
 
                         posList.push_back(-1);
@@ -677,9 +764,9 @@ public:
                         auto& exitTrade = t;
 
                         auto closedVolume = std::min(exitTrade.volume, entryTrade.volume);
-                        auto result = TradingResult(entryTrade.price, entryTrade.dt,
-                        exitTrade.price, exitTrade.dt, closedVolume,
-                        rate, slippage, size);
+                        auto result = TradingResult(entryTrade.price, entryTrade.datetime,
+                        exitTrade.price, exitTrade.datetime, closedVolume,
+                        rate, slippage, contractSize);
                         resultList.push_back(result);
 
                         posList.push_back(1);
@@ -726,16 +813,16 @@ public:
         for(auto i : longTrade)
         {
             auto& t = *(i.second);
-            result = TradingResult(t.price, t.dt, endPrice, m_dt,
-            t.volume, rate, slippage, size);
+            result = TradingResult(t.price, t.datetime, endPrice, m_dt,
+            t.volume, rate, slippage, contractSize);
             resultList.push_back(result);
         }
 
         for(auto i : shortTrade)
         {
             auto& t = *(i.second);
-            result = TradingResult(t.price, t.dt, endPrice, m_dt,
-            -t.volume, rate, slippage, size);
+            result = TradingResult(t.price, t.datetime, endPrice, m_dt,
+            -t.volume, rate, slippage, contractSize);
             resultList.push_back(result);
         }
 
@@ -807,6 +894,11 @@ public:
         tradeCount = 0;
         tradeDict.clear();
     }
+
+	void showBacktestingResult()
+	{
+		auto d = calculateBacktestingResult();
+	}
 };
 
 

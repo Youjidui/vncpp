@@ -8,11 +8,19 @@
 #include "eventData.h"
 
 
-//invalid price: DBL_MIN
+//invalid price: DBL_MAX
 //invalid volume: ULONG_MAX
 
 typedef std::string Symbol;
 typedef std::string OrderID;
+typedef std::string TradeID;
+
+
+enum POSITION_EFFECT
+{
+	OFFSET_OPEN,
+	OFFSET_CLOSE
+};
 
 
 struct _Contract
@@ -43,6 +51,14 @@ struct _Timestamp
 	: datetime(tm)
 	{}
 };
+
+typedef time_t date_t;
+inline
+date_t dateFrom(time_t t)
+{
+	//time_t is total seconds from 1970.1.1
+	return t / (24 * 60 * 60);
+}
 
 struct _Tick
 {
@@ -147,6 +163,7 @@ typedef std::shared_ptr<Trade> TradePtr;
 
 enum ORDER_STATUS
 {
+	STATUS_NEW,
 	STATUS_NOTTRADED,
 	STATUS_PARTTRADED,
 	STATUS_ALLTRADED,

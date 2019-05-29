@@ -57,9 +57,6 @@ public:
 	}
 
 public:
-	OrderID sendOrder(std::string const& vtSymbol, int orderType, double price, int volume, Strategy& strategy)
-	{
-	}
 	OrderID sendOrder(std::string const& vtSymbol, int orderType, double price, int volume, StrategyPtr strategy)
 	{
 	}
@@ -123,13 +120,13 @@ public:
 						{
 							i = m_workingStopOrderDict.erase(i);
 
-							auto s = m_strategyOrderDict.find(so->strategy.name);
+							auto s = m_strategyOrderDict.find(so->strategy->name);
 							if(s != m_strategyOrderDict.end())
 							{
 								s->second.erase(so->stopOrderID);
 							}
 							so->status = STOPORDER_TRIGGERED;
-							so->strategy.onStopOrder(so);
+							so->strategy->onStopOrder(so);
 						}
 						else 
 						{
@@ -293,7 +290,7 @@ public:
 
 			for(auto k : m_workingStopOrderDict)
 			{
-				if(k.second->strategy.name == s->name)
+				if(k.second->strategy->name == s->name)
 				{
 					cancelStopOrder(k.first);
 				}
@@ -362,6 +359,8 @@ public:
 
 		for(auto i : m_strategyDict)
 		{
+			//the first level of the .json is the strategy name
+			//the second level is the parameters
 			auto& p = ptall.get_child(i.first);
 			i.second->setParameter(&p);
 		}

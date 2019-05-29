@@ -130,6 +130,9 @@ public:
     }
 };
 
+typedef std::shared_ptr<PersistenceEngine> PersistenceEnginePtr;
+
+
 
 class DataEngine
 {
