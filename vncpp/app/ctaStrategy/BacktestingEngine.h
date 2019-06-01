@@ -132,7 +132,7 @@ public:
     std::vector<time_t> tradeTimeList;
     std::vector<TradingResult> resultList;
 
-    public:
+public:
     BackTestingResult()
     {
         capital = 0;
@@ -164,23 +164,26 @@ class BacktestingEngine
     从而实现同一套代码从回测到实盘。
     */
 public:
-    const char* TICK_MODE = "tick";
-    const char* BAR_MODE = "bar";
+    const int TICK_MODE = 0;
+    const int BAR_MODE = 1;
 
-    public:
+public:
     int engineType;
+	int m_mode;
 
-    protected:
+protected:
     int stopOrderCount;
     std::map<OrderID, StopOrderPtr> stopOrderDict;
     std::map<OrderID, StopOrderPtr> workingStopOrderDict;
 
     StrategyPtr strategy;
-    std::string mode;
 	std::string startDate;
 	std::string endDate;
     int initDays;
 
+    std::string dbName;
+    std::string symbol;
+	
     double capital;
     double slippage;
     double rate;
@@ -194,8 +197,6 @@ public:
 
     std::vector<TickPtr> m_initTickData;
 	std::vector<BarPtr> m_initBarData;
-    std::string dbName;
-    std::string symbol;
 
     time_t dataStartDate;
     time_t dataEndDate;
@@ -218,6 +219,12 @@ public:
     BacktestingEngine()
     {}
 
+	void setDatabase(const std::string& db, const std::string& symbol)
+	{
+		this->dbName = db;
+		this->symbol = symbol;
+	}
+
     //void setStartDate(time_t startDate, int initDays = 10)
     //dateFormat = "20100416"
     void setStartDate(std::string const& startDate, int initDays = 10)
@@ -239,6 +246,11 @@ public:
         this->dataEndDate = mktime(&tm1);
     }
 
+	void setBacktestingMode(int mode) { m_mode = mode;}
+	void setSlippage(double s) { slippage = s;}
+	void setRate(double r) { rate = r; }
+	void setContractSize(double s) { contractSize = s; }
+	void setPriceTick(double pt) { priceTick = pt; }
 
     public:
     bool initHdsClient()
@@ -334,7 +346,7 @@ public:
 		/*
         for(auto d : dbCursor)
         {
-            if(mode == BAR_MODE)
+            if(m_mode == BAR_MODE)
             {
                 auto bar = std::make_shared<Bar>();
                 loadFromDB(d, bar);
@@ -803,27 +815,27 @@ public:
         }
 
         double endPrice = 0;
-        if(mode == BAR_MODE)
-            endPrice = bar->close;
+        if(m_mode == BAR_MODE)
+            endPrice = m_bar->close;
         else
         {
-            endPrice = tick->lastPrice;
+            endPrice = m_tick->lastPrice;
         }
 
         for(auto i : longTrade)
         {
-            auto& t = *(i.second);
-            result = TradingResult(t.price, t.datetime, endPrice, m_dt,
+            auto& t = (i);
+            auto result = TradingResult(t.price, t.datetime, endPrice, m_dt,
             t.volume, rate, slippage, contractSize);
-            resultList.push_back(result);
+            resultList.push_back(std::move(result));
         }
 
         for(auto i : shortTrade)
         {
-            auto& t = *(i.second);
-            result = TradingResult(t.price, t.datetime, endPrice, m_dt,
+            auto& t = (i);
+            auto result = TradingResult(t.price, t.datetime, endPrice, m_dt,
             -t.volume, rate, slippage, contractSize);
-            resultList.push_back(result);
+            resultList.push_back(std::move(result));
         }
 
         BackTestingResult r;

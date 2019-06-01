@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     engine->setStartDate(t);
     engine->setSlippage(0.2);
     engine->setRate(0.3/10000);
-    engine->setSize(300);
+    engine->setContractSize(300);
     engine->setPriceTick(0.2);
 
     engine->setDatabase(MINUTE_DB_NAME, "IF0000");
