@@ -14,9 +14,9 @@ message(STATUS "find the following boost libraries: ${Boost_LIBRARIES}")
 aux_source_directory(. src)
 
 add_executable(ctaTrading ${src})
-add_dependencies(ctaTrading vTrader vEvent log )
+add_dependencies(ctaTrading ctaEngine vTrader vEvent log )
 #target_link_libraries(ctaTrading vTrader vEvent log ${Boost_LIBRARIES})
-target_link_libraries(ctaTrading vTrader vEvent log ctaStrategy vCtp 
+target_link_libraries(ctaTrading ctaEngine vTrader vEvent log vCtp 
 	Boost::log Boost::filesystem Boost::date_time)
 
 

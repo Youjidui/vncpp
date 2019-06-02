@@ -164,8 +164,8 @@ class BacktestingEngine
     从而实现同一套代码从回测到实盘。
     */
 public:
-    const int TICK_MODE = 0;
-    const int BAR_MODE = 1;
+    static const int TICK_MODE = 0;
+    static const int BAR_MODE = 1;
 
 public:
     int engineType;
