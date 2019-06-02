@@ -31,7 +31,7 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 
 	//strategy parameters
 	//std::string m_settingfilePath;
-	boost::property_tree::ptree* parameters;
+	boost::property_tree::ptree parameters;
 
     public:
     //from configuration setting
@@ -50,11 +50,10 @@ class Strategy : public std::enable_shared_from_this<Strategy>
     Strategy(const std::string& instanceName, CtaEngine& e)
     : name(instanceName)
 	, m_ctaEngine(e)
-	, parameters(NULL)
     {}
 
 	public:
-	void setParameter(boost::property_tree::ptree* aParameters)
+	void setParameter(boost::property_tree::ptree&& aParameters)
 	{
 		parameters = aParameters;
 	}
@@ -225,7 +224,7 @@ class StrategyLoaderForDynamicLibrary
 		}
 	}
 
-	public:
+public:
 	StrategyPtr load(const std::string& aInstanceName, const std::string& aStrategyClassName, 
     const std::string& aModuleName, CtaEngine& engine)
 	{
@@ -480,4 +479,91 @@ public:
 };
 
 */
+
+
+/*
+ *
+ * strategy configuration file format
+ *
+ * it's a JSON file with following format
+ *
+ * 	{
+ * 		"strategies" : [
+ * 		{
+ * 			"instanceName" : 	"DemoStrategy 1",
+ * 			"className" : 		"DemoStrategy",
+ * 			"filePath" : 		"./startegy/libdemostrategy.so"
+ * 			"parameters" : 
+ * 			{
+ * 				"parameter1" : 	true,
+ * 				"parameter2" : 	1,
+ * 				"parameter3" : 	0.1
+ * 			}
+ * 		},
+ * 		{
+ * 			"instanceName" : 	"KingKeltner",
+ * 			"className" : 		"StrategyKingKeltner",
+ * 			"filePath" : 		"./strategy/libstrategykingkeltner.so"
+ * 			"parameters" : 
+ * 			{
+ * 				"parameter1" : "demo"
+ * 			}
+ * 		}
+ * 		]
+ * 	}
+ *
+ * */
+
+
+struct CtaStrategyConfigurationManager
+{
+public:
+	typedef std::string StrategyInstanceName;
+	
+	std::shared_ptr<boost::property_tree::ptree> parameters;
+	StrategyLoaderForDynamicLibrary m_loader;
+
+public:
+	void loadConfiguration(const std::string& configFilePath)
+	{
+		std::ifstream f(configFilePath);
+		if(f.is_open())
+		{
+			parameters = std::make_shared<boost::property_tree::ptree>();
+			boost::property_tree::json_parser::read_json(f, *parameters);
+		}
+	}
+
+	void loadStrategies(CtaEngine& engine, std::map<StrategyInstanceName, StrategyPtr>& strategyDict)
+	{
+		auto& pt = parameters->get_child("strategies");
+		for(auto i : pt)
+		{
+			std::string instanceName;
+			instanceName = i.second.get("instanceName", instanceName);
+			StrategyPtr p;
+		
+			auto it = strategyDict.find(instanceName);
+			if(it == strategyDict.end())
+			{
+				std::string className;
+				className = i.second.get("className", className);
+				std::string filePath;
+				filePath = i.second.get("filePath", filePath);
+
+				p = m_loader.load(instanceName, className, filePath, engine);
+				strategyDict.insert(std::make_pair(instanceName, p));
+			}
+			else
+			{
+				p = it->second;
+			}
+			auto pp = i.second.get_child("parameters");
+			p->setParameter(std::move(pp));
+		}
+	}
+
+};
+
+
 

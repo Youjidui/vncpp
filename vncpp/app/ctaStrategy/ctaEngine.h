@@ -30,6 +30,7 @@ protected:
 	EventEnginePtr m_ee;
 	MainEnginePtr mainEngine;
 	int engineType;
+	CtaStrategyConfigurationManager m_configManager;
 
 public:
 	std::map<Symbol, StopOrderPtr> m_workingStopOrderDict;
@@ -228,6 +229,7 @@ public:
 
 	//loadStrategy
 	//each strategy instance should have a instance name, different than strategy name (more like a strategy class name)
+	
 	void setupStrategy(StrategyPtr s, const std::string& vtSymbol)
 	{
 		m_strategyDict[s->name] = s;
@@ -347,13 +349,14 @@ public:
 		boost::property_tree::ptree ptall;
 		for(auto i : m_strategyDict)
 		{
-			ptall.put_child(i.first, *(i.second->parameters));
+			ptall.put_child(i.first, (i.second->parameters));
 		}
 		boost::property_tree::json_parser::write_json(filePath, ptall);
 	}
 
 	void loadSettings(const std::string& filePath)
 	{
+		/*
 		boost::property_tree::ptree ptall;
 		boost::property_tree::json_parser::read_json(filePath, ptall);
 
@@ -364,6 +367,9 @@ public:
 			auto& p = ptall.get_child(i.first);
 			i.second->setParameter(&p);
 		}
+		*/
+		m_configManager.loadConfiguration(filePath);
+		m_configManager.loadStrategies(*this, this->m_strategyDict);
 	}
 
 	void saveSyncData(StrategyPtr s)
