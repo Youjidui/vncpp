@@ -10,6 +10,7 @@
 //#include <mongocxx/uri.hpp>
 #include "ctaBase.h"
 #include "ctaTemplate.h"
+#include "ctaEngine.h"
 #include "vtPersistence.h"
 
 
@@ -156,7 +157,7 @@ public:
 };
 
 
-class BacktestingEngine
+class BacktestingEngine : public CtaEngine 
 {
     /*
     CTA回测引擎
@@ -216,7 +217,8 @@ protected:
     std::map<date_t, DailyResult> dailyResultDict;
 
 public:
-    BacktestingEngine()
+    BacktestingEngine(EventEnginePtr ee, MainEnginePtr m)
+		: CtaEngine(ee, m)
     {}
 
 	void setDatabase(const std::string& db, const std::string& symbol)

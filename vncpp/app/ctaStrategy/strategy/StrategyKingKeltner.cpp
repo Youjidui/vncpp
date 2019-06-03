@@ -58,8 +58,8 @@ class StrategyKingKeltner : public Strategy
 
     int kkUp;
     int kkDown;
-    int intraTradeHigh;
-    int intraTradeLow;
+    double intraTradeHigh;
+    double intraTradeLow;
 
     //OcoOrder, One Cancel Another
     OrderID buyOrderID;
@@ -67,7 +67,7 @@ class StrategyKingKeltner : public Strategy
     std::vector<OrderID> orderList;
 
 public:
-    static const std::string className = "StrategyKingKeltner";
+    static const std::string className; 
 	virtual const std::string getClassName() { return className; }
 
 public:
@@ -81,16 +81,14 @@ public:
         fixedSize = 1;
 
         kkUp = 0;
-        kkDow = 0;
+        kkDown = 0;
         intraTradeHigh = 0;
         intraTradeLow = 0;
     }
 
 public:
-	virtual bool init(const boost::property_tree::ptree* aParameters)
-    {
-        parameters = aParameters;
-
+	virtual bool init()
+	{
         bg = std::make_shared<BarGenerator>();
         am = std::make_shared<ArrayManager>();
     }
@@ -128,9 +126,9 @@ public:
         }
         orderList.clear();
 
-        am.updateBar(b);
+        am->updateBar(b);
 
-        am.keltner(kkLength, kkDev);
+        am->keltner(kkLength, kkDev);
 
         if(position == 0)
         {
@@ -181,7 +179,7 @@ public:
             //    orderList.erase(std::remove(orderList.begin(), orderList.end(), shortOrderID), orderList.end());
             //}
             orderList.erase(std::remove_if(orderList.begin(), orderList.end(), 
-            [&shortOrderID, &buyOrderID](const OrderID& id)
+            [this](const OrderID& id)
             {
                 return (id == shortOrderID) || (id == buyOrderID);
             }
@@ -194,7 +192,7 @@ public:
     void sendOcoOrder(double buyPrice, double shortPrice, int volume)
     {
         auto buyOrderID = buy(buyPrice, volume, true);
-        auto shortOrderID = short(shortPrice, volume, true);
+        auto shortOrderID = Short(shortPrice, volume, true);
         orderList.push_back(buyOrderID);
         orderList.push_back(shortOrderID);
     }
@@ -215,7 +213,7 @@ CtaEngine* engine)
 
     if(StrategyKingKeltner::className == aStrategyClassName)
     {
-        auto s = new StrategyKingKeltner(aInstanceName, &engine);
+        auto s = new StrategyKingKeltner(aInstanceName, *engine);
         return s;
     }
     return NULL;
@@ -227,4 +225,8 @@ void API_EXPORT destroyStrategyInstance(Strategy* aStrategyInstance)
 }
 
 }
+
+
+
+const std::string StrategyKingKeltner::className = "StrategyKingKeltner";
 

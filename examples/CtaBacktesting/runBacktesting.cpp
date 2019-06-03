@@ -10,6 +10,25 @@
 //#include "ctp/ctpGateway.h"
 #include "BacktestingEngine.h"
 
+const std::string MINUTE_DB_NAME = "MINUTE_DB_NAME";
+
+const std::string config = 
+"{\n"
+"\"strategies\" : [\n"
+"{\n"
+"\"instanceName\" : \"StrategyKingKeltner\",\n"
+"\"className\" : \"StrategyKingKeltner\",\n"
+"\"filePath\" : \"./strategy/libCtaStrategy.so\",\n"
+"\"parameters\" : {\n"
+"\"vtSymbol\" : \"IF0000\",\n"
+"\"kkLength\" : \"1\",\n"
+"\"kkDev\" : \"1.0\"\n"
+"}\n"
+"]\n"
+"}";
+
+const std::string configFileName = "./backtesting.config";
+
 time_t time_from_iso_string(const std::string& dt)
 {
     auto sd = boost::gregorian::date_from_iso_string(dt);
@@ -19,19 +38,34 @@ time_t time_from_iso_string(const std::string& dt)
 
 int main(int argc, char* argv[])
 {
-    auto engine = std::make_shared<BacktestingEngine>();
+	printf("----------------------------\n");
+	LOG_INFO << "start CTA strategy backtesting\n";
+	auto ee = eventEngine();
+	ee->start(false);
+	LOG_INFO << "start event engine without working thread";
+	auto me = mainEngine(ee);
+	LOG_INFO << "start main engine";
+
+    auto engine = std::make_shared<BacktestingEngine>(ee, me);
+	me->addApp(engine);
+
     engine->setBacktestingMode(BacktestingEngine::BAR_MODE);
-    auto t = time_from_iso_string("20120101");
-    engine->setStartDate(t);
+	const std::string dt("20120101");
+    //auto t = time_from_iso_string(dt);
+    engine->setStartDate(dt);
     engine->setSlippage(0.2);
     engine->setRate(0.3/10000);
     engine->setContractSize(300);
     engine->setPriceTick(0.2);
 
     engine->setDatabase(MINUTE_DB_NAME, "IF0000");
-
-    auto stg = std::make_shared<StrategyKingKeltner>();
-    engine->initStrategy(stg);
+	engine->loadSettings(configFileName);
+	LOG_INFO << "load CTA backtesting settings";
+    //auto stg = std::make_shared<StrategyKingKeltner>();
+    //engine->initStrategy(stg);
+	engine->initAll();
+	LOG_INFO << "init CTA";
+	engine->startAll();
 
     engine->runBacktesting();
 

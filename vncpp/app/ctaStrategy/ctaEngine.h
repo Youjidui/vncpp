@@ -213,12 +213,14 @@ public:
 	{
 	}
 
-	void loadBar(const std::string& dbName, const std::string& vtSymbol, int days)
+	std::vector<BarPtr> loadBar(const std::string& dbName, const std::string& vtSymbol, int days)
 	{
+		return std::vector<BarPtr>();
 	}
 
-	void loadTick(const std::string& dbName, const std::string& vtSymbol, int days)
+	std::vector<TickPtr> loadTick(const std::string& dbName, const std::string& vtSymbol, int days)
 	{
+		return std::vector<TickPtr>();
 	}
 
 	void writeCtaLog(std::string&& logContent)

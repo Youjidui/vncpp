@@ -43,6 +43,7 @@ int main()
 
 	ee->run();
 
+	printf("type q to quit");
 	while(true)
 	{
 		char c = getchar();

@@ -40,13 +40,13 @@ void Strategy::insertBar(BarPtr bar)
 {
 	m_ctaEngine.insertData(barDbName, vtSymbol, bar);
 }
-void Strategy::loadTick(int days)
+std::vector<TickPtr> Strategy::loadTick(int days)
 {
-	m_ctaEngine.loadTick(tickDbName, vtSymbol, days);
+	return m_ctaEngine.loadTick(tickDbName, vtSymbol, days);
 }
-void Strategy::loadBar(int days)
+std::vector<BarPtr> Strategy::loadBar(int days)
 {
-	m_ctaEngine.loadBar(barDbName, vtSymbol, days);
+	return m_ctaEngine.loadBar(barDbName, vtSymbol, days);
 }
 
 void Strategy::saveSyncData()

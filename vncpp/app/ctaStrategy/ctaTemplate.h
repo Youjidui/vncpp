@@ -56,6 +56,7 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 	void setParameter(boost::property_tree::ptree&& aParameters)
 	{
 		parameters = aParameters;
+		onSetParameters();
 	}
 
 	virtual bool init() = 0;
@@ -101,14 +102,17 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 
     void insertTick(TickPtr tick);
     void insertBar(BarPtr bar);
-    void loadTick(int days);
-    void loadBar(int days);
+	std::vector<TickPtr> loadTick(int days);
+	std::vector<BarPtr> loadBar(int days);
 
     void saveSyncData();
 
     double getPriceTick();
 
 	int getEngineType();
+
+	protected:
+	virtual void onSetParameters() {}
 };
 
 typedef Strategy CtaTemplate;
@@ -448,14 +452,14 @@ public:
 	{}
 };
 
-/*
+
 class ArrayManager
 {
-	// *
+	/*
     K线序列管理工具，负责：
     1. K线时间序列的维护
     2. 常用技术指标的计算
-	* /
+	*/
 public:
 	int count;
 	int size;
@@ -463,11 +467,11 @@ public:
 public:
 	ArrayManager()
 	{
-		TA_Initialize();
+		//TA_Initialize();
 	}
 	~ArrayManager()
 	{
-		TA_Shutdown();
+		//TA_Shutdown();
 	}
 
 
@@ -476,9 +480,18 @@ public:
 	{
 		//return TA_SMA();
 	}
+
+	public:
+	void updateBar(BarPtr b)
+	{
+	}
+
+	void keltner(int kkLength, double kkDev)
+	{
+	}
 };
 
-*/
+
 
 
 /*
