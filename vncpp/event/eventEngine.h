@@ -19,8 +19,8 @@ typedef std::function<void (uint32_t, std::string const&)> ErrorHandler;
 class EventLoop
 {
 	protected:
-	std::shared_ptr<boost::asio::io_context> m_context;
-	std::unique_ptr<boost::asio::io_context::work> m_donothing;
+	std::shared_ptr<boost::asio::io_service> m_context;
+	std::unique_ptr<boost::asio::io_service::work> m_donothing;
 	std::unique_ptr<std::thread> m_worker;
 
 	void internalRun()
@@ -31,8 +31,8 @@ class EventLoop
 	public:
 	void start(bool subThread = false)
 	{
-		m_context.reset(new boost::asio::io_context);
-		m_donothing.reset(new boost::asio::io_context::work(*m_context.get()));
+		m_context.reset(new boost::asio::io_service);
+		m_donothing.reset(new boost::asio::io_service::work(*m_context.get()));
 		if(subThread)
 			m_worker.reset(new std::thread(std::bind(&EventLoop::internalRun, this)));
 	}
