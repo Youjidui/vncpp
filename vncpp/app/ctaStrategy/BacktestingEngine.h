@@ -68,9 +68,9 @@ public:
 	double netPnl;
 
 public:
-	DailyResult(time_t d, double closePx)
-		: date(d), closePrice(closePx)
-	{}
+	//DailyResult(time_t d, double closePx)
+	//	: date(d), closePrice(closePx)
+	//{}
 
 	void addTrade(TradePtr t)
 	{
@@ -392,7 +392,8 @@ public:
 		auto i = dailyResultDict.find(date);
 		if(i == dailyResultDict.end())
 		{
-			dailyResultDict.insert(std::make_pair(date, DailyResult(date, price)));
+			DailyResult dr = {date, price, 0};
+			dailyResultDict.insert(std::make_pair(date, dr));
 		}
 		else
 		{
