@@ -7,4 +7,4 @@ target_link_libraries( algoEngine log vEvent vTrader ${Boost_LIBRARIES} dl)
 
 #install(algoEngine DESTINATION ${PROJECT_BINARY_DIR})
 install(algoEngine DESTINATION .)
-
+copy_target(algoEngine)

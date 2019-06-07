@@ -10,5 +10,8 @@
 #define LOG_FATAL		BOOST_LOG_TRIVIAL(fatal)
 
 
-
+#ifdef __linux__
+#undef __FUNCTION__
+#define __FUNCTION__ __PRETTY_FUNCTION__
+#endif
 

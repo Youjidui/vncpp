@@ -52,6 +52,9 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 	, m_ctaEngine(e)
     {}
 
+	virtual ~Strategy()
+	{}
+
 	public:
 	void setParameter(boost::property_tree::ptree&& aParameters)
 	{
@@ -173,6 +176,7 @@ class StrategyLoaderForDynamicLibrary
 	Strategy* loadStrategy(const std::string& aInstanceName, const std::string& aStrategyClassName,
      const std::string& aModuleName, CtaEngine& engine)	
 	{
+		LOG_DEBUG << __FUNCTION__;
 		Strategy* r = nullptr;
 		#ifdef __linux__
 		void* handle = dlopen(aModuleName.c_str(), RTLD_NOW);
@@ -202,6 +206,7 @@ class StrategyLoaderForDynamicLibrary
 
 	void freeStrategy(Strategy* s)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		if(s)
 		{
 			auto it = m_dllHandleDict.find(s->getClassName());
@@ -232,6 +237,7 @@ public:
 	StrategyPtr load(const std::string& aInstanceName, const std::string& aStrategyClassName, 
     const std::string& aModuleName, CtaEngine& engine)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto p = loadStrategy(aInstanceName, aStrategyClassName, aModuleName, engine);
 		if(p)
 			return StrategyPtr(p, StrategyDeleter(&dynamicLibraryDestroyStrategyInstance, this));
@@ -293,6 +299,7 @@ class TargetPosTemplate : public CtaTemplate
 
 	void setTargetPosition(int targetPos)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		m_targetPosition = targetPos;
 		trade();
 	}
@@ -300,12 +307,14 @@ class TargetPosTemplate : public CtaTemplate
 	void trade();
     virtual void onTick(TickPtr tick)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		m_lastTick = tick;
 		if(m_running)
 			trade();
 	}
     virtual void onOrder(OrderPtr o)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		if(o->status == STATUS_ALLTRADED || o->status == STATUS_CANCELLED)
 		{
 			auto i = m_orderList.find(o->vtOrderID);
@@ -365,6 +374,7 @@ public:
 public:
 	void updateTick(TickPtr tick)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		bool newMinute = false;
 
 		if(!bar)
@@ -410,6 +420,7 @@ public:
 
 	void updateBar(BarPtr bar)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		if(!m_xminuteBar)
 		{
 			m_xminuteBar = std::make_shared<Bar>();
@@ -539,6 +550,7 @@ public:
 public:
 	void loadConfiguration(const std::string& configFilePath)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		std::ifstream f(configFilePath);
 		if(f.is_open())
 		{
@@ -549,6 +561,7 @@ public:
 
 	void loadStrategies(CtaEngine& engine, std::map<StrategyInstanceName, StrategyPtr>& strategyDict)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto& pt = parameters->get_child("strategies");
 		for(auto i : pt)
 		{

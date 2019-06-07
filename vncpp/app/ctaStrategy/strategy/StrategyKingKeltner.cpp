@@ -74,6 +74,7 @@ public:
     StrategyKingKeltner(const std::string& instanceName, CtaEngine& e)
     : Strategy(instanceName, e)
     {
+		LOG_DEBUG << __FUNCTION__;
         kkLength = 11;
         kkDev    = 1.6;
         trailingPrcnt = 0.8;
@@ -89,11 +90,13 @@ public:
 public:
 	virtual bool init()
 	{
+		LOG_DEBUG << __FUNCTION__;
         bg = std::make_shared<BarGenerator>();
         am = std::make_shared<ArrayManager>();
     }
 	virtual void onInit()
     {
+		LOG_DEBUG << __FUNCTION__;
         auto initData = loadBar(initDays);
         for(auto i : initData)
         {
@@ -101,25 +104,36 @@ public:
         }
     }
 	virtual bool start()
-    {}
+    {
+		LOG_DEBUG << __FUNCTION__;
+	}
 	virtual void onStart()
-    {}
+    {
+		LOG_DEBUG << __FUNCTION__;
+	}
 	virtual void stop()
-    {}
+    {
+		LOG_DEBUG << __FUNCTION__;
+	}
 	virtual void onStop()
-    {}
+    {
+		LOG_DEBUG << __FUNCTION__;
+	}
 
     virtual void onTick(TickPtr t)
     {
+		LOG_DEBUG << __FUNCTION__;
         bg->updateTick(t);
     }
     virtual void onBar(BarPtr b)      //K-line
     {
+		LOG_DEBUG << __FUNCTION__;
         bg->updateBar(b);
     }
 
     void onFiveBar(BarPtr b)
     {
+		LOG_DEBUG << __FUNCTION__;
         for(auto i : orderList)
         {
             cancelOrder(i);
@@ -157,10 +171,13 @@ public:
     }
 
     virtual void onOrder(OrderPtr)
-    {}
+    {
+		LOG_DEBUG << __FUNCTION__;
+	}
 
     virtual void onTrade(TradePtr t)
     {
+		LOG_DEBUG << __FUNCTION__;
         if(position != 0)
         {
             if(position > 0)
@@ -191,6 +208,7 @@ public:
 
     void sendOcoOrder(double buyPrice, double shortPrice, int volume)
     {
+		LOG_DEBUG << __FUNCTION__;
         auto buyOrderID = buy(buyPrice, volume, true);
         auto shortOrderID = Short(shortPrice, volume, true);
         orderList.push_back(buyOrderID);
@@ -198,7 +216,9 @@ public:
     }
 
     virtual void onStopOrder(StopOrderPtr)
-    {}
+    {
+		LOG_DEBUG << __FUNCTION__;
+	}
 };
 
 
@@ -208,6 +228,7 @@ extern "C"
 Strategy* API_EXPORT createStrategyInstance(const char* aInstanceName, const char* aStrategyClassName, 
 CtaEngine* engine)
 {
+	LOG_DEBUG << __FUNCTION__;
     if(engine == NULL)
         return NULL;
 
@@ -221,6 +242,7 @@ CtaEngine* engine)
 
 void API_EXPORT destroyStrategyInstance(Strategy* aStrategyInstance)
 {
+	LOG_DEBUG << __FUNCTION__;
     delete aStrategyInstance;
 }
 

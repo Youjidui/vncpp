@@ -4,4 +4,4 @@ add_dependencies(vEvent log )
 target_link_libraries( vEvent log ${Boost_LIBRARIES})
 
 install(TARGETS vEvent DESTINATION .)
-
+copy_target(vEvent)

@@ -68,6 +68,7 @@ int Strategy::getEngineType()
 
 void TargetPosTemplate::trade()
 {
+	LOG_DEBUG << __FUNCTION__;
 	if(!m_orderList.empty())
 		cancelAll();
 	else

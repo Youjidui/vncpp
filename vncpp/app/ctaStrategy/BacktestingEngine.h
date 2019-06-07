@@ -219,10 +219,13 @@ protected:
 public:
     BacktestingEngine(EventEnginePtr ee, MainEnginePtr m)
 		: CtaEngine(ee, m)
-    {}
+    {
+		LOG_DEBUG << __FUNCTION__;
+	}
 
 	void setDatabase(const std::string& db, const std::string& symbol)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		this->dbName = db;
 		this->symbol = symbol;
 	}
@@ -231,6 +234,7 @@ public:
     //dateFormat = "20100416"
     void setStartDate(std::string const& startDate, int initDays = 10)
     {
+		LOG_DEBUG << __FUNCTION__;
         this->startDate = startDate;
         this->initDays = initDays;
         struct tm tm1 = {0};
@@ -240,6 +244,7 @@ public:
 
     void setEndDate(std::string const& endDate)
     {
+		LOG_DEBUG << __FUNCTION__;
         this->endDate = endDate;
         struct tm tm1 = {0};
         sscanf(endDate.c_str(), "%4d%2d%2d", &tm1.tm_year, &tm1.tm_mon, &tm1.tm_mday);
@@ -257,6 +262,7 @@ public:
     public:
     bool initHdsClient()
     {
+		LOG_DEBUG << __FUNCTION__;
         auto reqAddress = "tcp://localhost:5555";
         auto subAddress = "tcp://localhost:7777";
         //hdsClient = std::make_shared<RpcClient>(reqAddress, subAddress);
@@ -265,6 +271,7 @@ public:
 
     void loadHistoryData()
     {/*
+		LOG_DEBUG << __FUNCTION__;
         mongocxx::uri uri("mongodb://localhost:27017");
         auto dbClient = std::make_shared<mongocxx::client>(uri);
         auto collection = dbClient[dbName][symbol];
@@ -337,14 +344,21 @@ public:
 
     void runBacktesting()
     {
+		LOG_DEBUG << __FUNCTION__;
+
         loadHistoryData();
 
-        
-        strategy->init();
-        strategy->onInit();
+       	auto i = m_strategyDict.begin();
+		if(i != m_strategyDict.end())
+		{
+			strategy = i->second;
+        	strategy->init();
+        	strategy->onInit();
 
-        strategy->start();
-        strategy->onStart();
+        	strategy->start();
+        	strategy->onStart();
+		}
+
 		/*
         for(auto d : dbCursor)
         {
@@ -366,6 +380,7 @@ public:
 
     void newBar(BarPtr bar)
     {
+		LOG_DEBUG << __FUNCTION__;
         m_bar = bar;
         m_dt = bar->datetime;
 
@@ -377,6 +392,7 @@ public:
 
     void newTick(TickPtr t)
     {
+		LOG_DEBUG << __FUNCTION__;
         m_tick = t;
         m_dt = t->datetime;
 
@@ -388,6 +404,7 @@ public:
 
 	void updateDailyClose(time_t dt, double price)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto date = dateFrom(dt);
 		auto i = dailyResultDict.find(date);
 		if(i == dailyResultDict.end())
@@ -403,11 +420,13 @@ public:
 
     void initStrategy(StrategyPtr s)
     {
+		LOG_DEBUG << __FUNCTION__;
         strategy = s;
     }
 
     void crossLimitOrder(BarPtr bar)
     {
+		LOG_DEBUG << __FUNCTION__;
         auto buyCrossPrice = bar->low;
         auto sellCrossPrice = bar->high;
         auto buyBestCrossPrice = bar->open;
@@ -417,6 +436,7 @@ public:
 
     void crossLimitOrder(TickPtr t)
     {
+		LOG_DEBUG << __FUNCTION__;
         auto buyCrossPrice = t->askPrice[0];
         auto sellCrossPrice = t->bidPrice[0];
         auto buyBestCrossPrice = t->askPrice[0];
@@ -427,6 +447,7 @@ public:
     void crossLimitOrder_(double buyCrossPrice, double sellCrossPrice, 
     double buyBestCrossPrice, double sellBestCrossPrice)
     {
+		LOG_DEBUG << __FUNCTION__;
         for(auto i = workingLimitOrderDict.begin(); 
         i != workingLimitOrderDict.end(); ++i)
         {
@@ -478,6 +499,7 @@ public:
 
     void crossStopOrder(BarPtr b)
     {
+		LOG_DEBUG << __FUNCTION__;
         auto buyCrossPrice = b->high;
         auto sellCrossPrice = b->low;
         auto bestCrossPrice = b->open;
@@ -486,6 +508,7 @@ public:
 
     void crossStopOrder(TickPtr t)
     {
+		LOG_DEBUG << __FUNCTION__;
         auto buyCrossPrice = t->lastPrice;
         auto sellCrossPrice = t->lastPrice;
         auto bestCrossPrice = t->lastPrice;
@@ -494,6 +517,7 @@ public:
 
     void crossStopOrder_(double buyCrossPrice, double sellCrossPrice, double bestCrossPrice)
     {
+		LOG_DEBUG << __FUNCTION__;
         for(auto i = workingStopOrderDict.begin(); 
         i != workingStopOrderDict.end(); ++i)
         {
@@ -568,6 +592,7 @@ public:
 
     OrderID sendOrder(const std::string& vtSymbol, int orderType, double price, int volume, StrategyPtr s)
     {
+		LOG_DEBUG << __FUNCTION__;
         char str[20];
         sprintf(str,"%x",++limitOrderCount);
         auto no = std::make_shared<Order>();
@@ -607,6 +632,7 @@ public:
 
     void cancelOrder(const std::string& orderID)
     {
+		LOG_DEBUG << __FUNCTION__;
         auto i = workingLimitOrderDict.find(orderID);
         if(i != workingLimitOrderDict.end())
         {
@@ -620,6 +646,7 @@ public:
 
     StopOrderID sendStopOrder(const std::string& vtSymbol, int orderType, double price, int volume, StrategyPtr s)
     {
+		LOG_DEBUG << __FUNCTION__;
         char str[20];
         sprintf(str,"%s%x", STOPORDERPREFIX, ++stopOrderCount);
         auto so = std::make_shared<StopOrder>();
@@ -660,6 +687,7 @@ public:
 
     void cancelStopOrder(const std::string& stopOrderID)
     {
+		LOG_DEBUG << __FUNCTION__;
         auto i = workingStopOrderDict.find(stopOrderID);
         if(i != workingStopOrderDict.end())
         {
@@ -678,16 +706,19 @@ public:
 
     std::vector<BarPtr>& loadBar(const std::string& dbName, const std::string& collectionName, const std::string& startDate)
     {
+		LOG_DEBUG << __FUNCTION__;
         return m_initBarData;
     }
 
     std::vector<TickPtr>& loadTick(const std::string& dbName, const std::string& collectionName, const std::string& startDate)
     {
+		LOG_DEBUG << __FUNCTION__;
         return m_initTickData;
     }
 
     void cancelAll()
     {
+		LOG_DEBUG << __FUNCTION__;
         for(auto i : workingLimitOrderDict)
         {
             cancelOrder(i.first);
@@ -708,6 +739,7 @@ public:
 
     BackTestingResult calculateBacktestingResult()
     {
+		LOG_DEBUG << __FUNCTION__;
         std::vector<TradingResult> resultList;
         std::list<Trade> longTrade;
         std::list<Trade> shortTrade;
@@ -898,6 +930,7 @@ public:
 
     void clearBacktestingResult()
     {
+		LOG_DEBUG << __FUNCTION__;
         limitOrderCount = 0;
         limitOrderDict.clear();
         workingLimitOrderDict.clear();
@@ -912,6 +945,7 @@ public:
 
 	void showBacktestingResult()
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto d = calculateBacktestingResult();
 	}
 };

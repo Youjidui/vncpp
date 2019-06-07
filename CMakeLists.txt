@@ -20,6 +20,9 @@ add_definitions(-DBOOST_LOG_DYN_LINK)
 add_definitions(-DBOOST_ALL_DYN_LINK)
 endif()
 
+include(cmake/copy_target.cmake)
+
+
 ADD_SUBDIRECTORY(vncpp)
 ADD_SUBDIRECTORY(examples)
 

@@ -20,3 +20,4 @@ target_link_libraries(ctaTrading ctaEngine vTrader vEvent log vCtp 	Boost::log B
 
 install(TARGETS ctaTrading DESTINATION .)
 
+copy_target(ctaTrading)

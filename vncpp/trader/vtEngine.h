@@ -31,20 +31,24 @@ public:
 		: eventEngine(ee)
 		, dataEngine(std::make_shared<DataEngine>(ee))
 	{
+		LOG_DEBUG << __FUNCTION__;
 	}
 
 	void addGateway(GatewayPtr gw)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		gatewayDict[gw->name] = gw;
 	}
 
 	void addApp(AppPtr app)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		appDict[app->name] = app;
 	}
 
 	GatewayPtr getGateway(const std::string& gwName)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto i = gatewayDict.find(gwName);
 		if(i != gatewayDict.end())
 			return i->second;
@@ -53,6 +57,7 @@ public:
 
 	void connect(const std::string& gwName)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto gw = getGateway(gwName);
 		if(gw)
 			gw->connect();
@@ -60,6 +65,7 @@ public:
 
 	void subscribe(SubscribeRequestPtr req, const std::string& gwName)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto gw = getGateway(gwName);
 		if(gw)
 			gw->subscribe(req);
@@ -67,6 +73,7 @@ public:
 
 	OrderID sendOrder(OrderRequestPtr req, const std::string& gwName)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		//if(rmEngine && !rmEngine->checkRisk(req, gwName))
 		{
 			return OrderID();
@@ -85,6 +92,7 @@ public:
 
 	void cancelOrder(CancelOrderRequestPtr req, const std::string& gwName)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto gw = getGateway(gwName);
 		if(gw)
 		{
@@ -94,6 +102,7 @@ public:
 
 	AccountPtr qryAccount(const std::string& gwName)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto gw = getGateway(gwName);
 		if(gw)
 		{
@@ -105,6 +114,7 @@ public:
 
 	std::vector<PositionPtr> qryPosition(const std::string& gwName)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto gw = getGateway(gwName);
 		if(gw)
 		{
@@ -116,11 +126,13 @@ public:
 
 	ContractPtr getContract(const Symbol& s)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		return dataEngine->getContract(s);
 	}
 
 	void exit()
 	{
+		LOG_DEBUG << __FUNCTION__;
 		for(auto i : gatewayDict)
 		{
 			i.second->close();

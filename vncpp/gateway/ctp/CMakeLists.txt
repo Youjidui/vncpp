@@ -4,3 +4,4 @@ add_dependencies(vCtp vEvent log vTrader )
 target_link_libraries(vCtp vEvent log vTrader ${Boost_LIBRARIES})
 
 install(TARGETS vCtp DESTINATION .)
+copy_target(vCtp)

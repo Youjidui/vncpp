@@ -20,3 +20,6 @@ target_link_libraries(ctaBacktesting ctaEngine vTrader vEvent log vCtp 	Boost::l
 install(TARGETS ctaBacktesting DESTINATION .)
 install(FILES backtesting.config DESTINATION .)
 
+#include(cmake/copy_target.cmake)
+copy_target(ctaBacktesting)
+

@@ -49,6 +49,7 @@ public:
 		: App("CTA", "CTA Strategy") 
 		, m_ee(ee), mainEngine(m)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		registerEvent();
 	}
 
@@ -60,23 +61,28 @@ public:
 public:
 	OrderID sendOrder(std::string const& vtSymbol, int orderType, double price, int volume, StrategyPtr strategy)
 	{
+		LOG_DEBUG << __FUNCTION__;
 	}
 
 	void cancelOrder(OrderID const& vOrderID)
 	{
+		LOG_DEBUG << __FUNCTION__;
 	}
 
 	OrderID sendStopOrder(std::string const& vtSymbol, int orderType, double price, int volume, StrategyPtr strategy)
 	{
+		LOG_DEBUG << __FUNCTION__;
 	}
 
 	void cancelStopOrder(StopOrderID const& vOrderID)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		cancelOrder(vOrderID);
 	}
 
 	void cancelAll(const std::string& aStrategyInstanceName)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto i = m_strategyOrderDict.find(aStrategyInstanceName);
 		if(i != m_strategyOrderDict.end())
 		{}
@@ -84,6 +90,7 @@ public:
 
 	void processStopOrder(TickPtr& tick)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto& vtSymbol = tick->vtSymbol;
 		auto it = m_tickStrategyDict.find(vtSymbol);
 		if(it != m_tickStrategyDict.cend())
@@ -141,6 +148,7 @@ public:
 
 	void processTickEvent(Event e)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto tick = std::dynamic_pointer_cast<Tick>(e.dict);
 		processStopOrder(tick);
 
@@ -157,6 +165,7 @@ public:
 
 	void processOrderEvent(Event e)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto order = std::dynamic_pointer_cast<Order>(e.dict);
 		auto& vtOrderID = order->vtOrderID;
 		auto it = m_orderStrategyDict.find(vtOrderID);
@@ -177,6 +186,7 @@ public:
 
 	void processTradeEvent(Event e)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto trade = std::dynamic_pointer_cast<Trade>(e.dict);
 		auto it = m_tradeSet.find(trade->vtTradeID);
 		if(it != m_tradeSet.end())
@@ -200,6 +210,7 @@ public:
 
 	void registerEvent()
 	{
+		LOG_DEBUG << __FUNCTION__;
 		m_ee->register_(EVENT_TICK, std::bind(&CtaEngine::processTickEvent, this, std::placeholders::_1));
 		m_ee->register_(EVENT_ORDER, std::bind(&CtaEngine::processOrderEvent, this, std::placeholders::_1));
 		m_ee->register_(EVENT_TRADE, std::bind(&CtaEngine::processTradeEvent, this, std::placeholders::_1));
@@ -207,24 +218,29 @@ public:
 
 	void insertData(const std::string& dbName, const std::string& vtSymbol, BarPtr) 
 	{
+		LOG_DEBUG << __FUNCTION__;
 	}
 
 	void insertData(const std::string& dbName, const std::string& vtSymbol, TickPtr) 
 	{
+		LOG_DEBUG << __FUNCTION__;
 	}
 
 	std::vector<BarPtr> loadBar(const std::string& dbName, const std::string& vtSymbol, int days)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		return std::vector<BarPtr>();
 	}
 
 	std::vector<TickPtr> loadTick(const std::string& dbName, const std::string& vtSymbol, int days)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		return std::vector<TickPtr>();
 	}
 
 	void writeCtaLog(std::string&& logContent)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto e = makeLogEvent("CTA_STRATEGY", std::move(logContent));
 		m_ee->emit(e);
 	}
@@ -234,6 +250,7 @@ public:
 	
 	void setupStrategy(StrategyPtr s, const std::string& vtSymbol)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		m_strategyDict[s->name] = s;
 		m_strategyOrderDict[s->name] = OrderIDSet();
 		auto it = m_tickStrategyDict.find(s->vtSymbol);
@@ -252,6 +269,7 @@ public:
 	//is this function necessary? should be merged into startStrategy()
 	void initStrategy(const std::string& name)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto i = m_strategyDict.find(name);
 		if(i != m_strategyDict.cend())
 		{
@@ -266,6 +284,7 @@ public:
 
 	void startStrategy(const std::string& name)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto i = m_strategyDict.find(name);
 		if(i != m_strategyDict.cend())
 		{
@@ -278,6 +297,7 @@ public:
 
 	void stopStrategy(const std::string& name)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto i = m_strategyDict.find(name);
 		if(i != m_strategyDict.cend())
 		{
@@ -306,6 +326,7 @@ public:
 
 	void subscribeMarketData(StrategyPtr s)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto c = mainEngine->getContract(s->vtSymbol);
 		if(c)
 		{
@@ -324,6 +345,7 @@ public:
 
 	void initAll()
 	{
+		LOG_DEBUG << __FUNCTION__;
 		for(auto i : m_strategyDict)
 		{
 			initStrategy(i.first);
@@ -332,6 +354,7 @@ public:
 
 	void startAll()
 	{
+		LOG_DEBUG << __FUNCTION__;
 		for(auto i : m_strategyDict)
 		{
 			startStrategy(i.first);
@@ -340,6 +363,7 @@ public:
 
 	void stopAll()
 	{
+		LOG_DEBUG << __FUNCTION__;
 		for(auto i : m_strategyDict)
 		{
 			stopStrategy(i.first);
@@ -348,6 +372,7 @@ public:
 
 	void saveSettings(const std::string& filePath)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		boost::property_tree::ptree ptall;
 		for(auto i : m_strategyDict)
 		{
@@ -358,6 +383,7 @@ public:
 
 	void loadSettings(const std::string& filePath)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		/*
 		boost::property_tree::ptree ptall;
 		boost::property_tree::json_parser::read_json(filePath, ptall);
@@ -376,16 +402,19 @@ public:
 
 	void saveSyncData(StrategyPtr s)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		
 	}
 
 	void loadSyncData(StrategyPtr s)
 	{
+		LOG_DEBUG << __FUNCTION__;
 
 	}
 
 	double getPriceTick(const std::string& vtSymbol)
 	{
+		LOG_DEBUG << __FUNCTION__;
 		auto c = mainEngine->getContract(vtSymbol);
 		if(c)
 		{

@@ -6,4 +6,4 @@ target_link_libraries( ctaEngine log vEvent vTrader ${Boost_LIBRARIES} dl)
 ADD_SUBDIRECTORY(strategy)
 
 install(TARGETS ctaEngine DESTINATION .)
-
+copy_target(ctaEngine)

@@ -71,6 +71,7 @@ int main(int argc, char* argv[])
 
     engine->showBacktestingResult();
 
+	LOG_INFO << argv[0] << " completed ";
     return 0;
 }
 
