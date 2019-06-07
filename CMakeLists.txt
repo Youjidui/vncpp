@@ -34,7 +34,7 @@ IF( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
 ENDIF()
 
 
-set(CPACK_GENERATOR "tar")
+set(CPACK_GENERATOR "tz")
 set(CPACK_PACKAGE_NAME "vncpp")
 set(CPACK_PACKAGE_VERSION "0.1")
 set(CPACK_SET_DESTDIR true)
