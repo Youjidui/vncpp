@@ -8,16 +8,15 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/event)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/trader)
 
 
-find_package(Boost COMPONENTS date_time filesystem system log asio)
-message(STATUS "find the following boost libraries: ${Boost_LIBRARIES}")
+#message(STATUS " *** find the following boost libraries: ${Boost_LIBRARIES} ***")
 
 aux_source_directory(. src)
 
 add_executable(ctaBacktesting ${src})
 add_dependencies(ctaBacktesting ctaStrategy ctaEngine vTrader vEvent log )
 #target_link_libraries(ctaBacktesting vTrader vEvent log ${Boost_LIBRARIES})
-target_link_libraries(ctaBacktesting ctaEngine vTrader vEvent log vCtp 
-	Boost::log Boost::filesystem Boost::date_time)
+target_link_libraries(ctaBacktesting ctaEngine vTrader vEvent log vCtp 	Boost::log Boost::filesystem Boost::date_time)
 
-
+install(TARGETS ctaBacktesting DESTINATION .)
+install(FILES backtesting.config DESTINATION .)
 
