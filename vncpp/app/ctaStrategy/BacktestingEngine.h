@@ -83,7 +83,7 @@ public:
 		this->positionPnl = openPosition * (closePrice - previousClose) * contractSize;
 		closePosition = openPosition;
 
-		auto tradeCount = tradeList.size();
+		//auto tradeCount = tradeList.size();
 		for(auto t : tradeList)
 		{
 			auto posChange = (t->direction == DIRECTION_LONG) ? t->volume : -(t->volume);
@@ -263,10 +263,11 @@ public:
     bool initHdsClient()
     {
 		LOG_DEBUG << __FUNCTION__;
-        auto reqAddress = "tcp://localhost:5555";
-        auto subAddress = "tcp://localhost:7777";
+        //auto reqAddress = "tcp://localhost:5555";
+        //auto subAddress = "tcp://localhost:7777";
         //hdsClient = std::make_shared<RpcClient>(reqAddress, subAddress);
         //hdsClient->start();
+		return true;
     }
 
     void loadHistoryData()
@@ -850,12 +851,15 @@ public:
         }
 
         double endPrice = 0;
-        if(m_mode == BAR_MODE)
+        if(m_mode == BAR_MODE && m_bar)
             endPrice = m_bar->close;
-        else
+        else if(m_mode == TICK_MODE && m_tick)
         {
             endPrice = m_tick->lastPrice;
         }
+		else
+		{
+		}
 
         for(auto i : longTrade)
         {

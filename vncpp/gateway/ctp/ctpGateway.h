@@ -25,14 +25,20 @@ class CtpGateway : public Gateway
 	virtual void subscribe(SubscribeRequestPtr p)
 	{}
 	virtual OrderID sendOrder(OrderRequestPtr p)
-	{}
+	{
+		return OrderID();
+	}
 	virtual void cancelOrder(CancelOrderRequestPtr p)
 	{}
 
 	virtual AccountPtr queryAccount()
-	{}
+	{
+		return AccountPtr();
+	}
 	virtual std::vector<PositionPtr> queryPosition()
-	{}
+	{
+		return std::vector<PositionPtr>();
+	}
 	//virtual void queryHistory(QueryHistoryRequestPtr p) = 0;
 };
 

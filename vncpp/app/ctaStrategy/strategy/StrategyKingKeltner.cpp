@@ -8,7 +8,8 @@
     #define API_IMPORT __declspec(dllimport)
 #elif defined(__GNUC__)
     //  GCC
-    #define API_EXPORT __attribute__((visibility("default")))
+    #define CLASS_EXPORT __attribute__((visibility("default")))
+    #define API_EXPORT
     #define API_IMPORT
 #else
     //  do nothing and hope for the best?
@@ -93,6 +94,7 @@ public:
 		LOG_DEBUG << __FUNCTION__;
         bg = std::make_shared<BarGenerator>();
         am = std::make_shared<ArrayManager>();
+		return true;
     }
 	virtual void onInit()
     {
@@ -106,6 +108,7 @@ public:
 	virtual bool start()
     {
 		LOG_DEBUG << __FUNCTION__;
+		return true;
 	}
 	virtual void onStart()
     {

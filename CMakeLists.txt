@@ -20,6 +20,8 @@ add_definitions(-DBOOST_LOG_DYN_LINK)
 add_definitions(-DBOOST_ALL_DYN_LINK)
 endif()
 
+add_definitions(-pipe -ggdb -fPIC -Wall)
+
 include(cmake/copy_target.cmake)
 
 

@@ -31,7 +31,7 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 
 	//strategy parameters
 	//std::string m_settingfilePath;
-	boost::property_tree::ptree parameters;
+	const boost::property_tree::ptree* parameters;
 
     public:
     //from configuration setting
@@ -50,13 +50,14 @@ class Strategy : public std::enable_shared_from_this<Strategy>
     Strategy(const std::string& instanceName, CtaEngine& e)
     : name(instanceName)
 	, m_ctaEngine(e)
+	, parameters(NULL)
     {}
 
 	virtual ~Strategy()
 	{}
 
 	public:
-	void setParameter(boost::property_tree::ptree&& aParameters)
+	void setParameter(const boost::property_tree::ptree* aParameters)
 	{
 		parameters = aParameters;
 		onSetParameters();
@@ -562,7 +563,7 @@ public:
 	void loadStrategies(CtaEngine& engine, std::map<StrategyInstanceName, StrategyPtr>& strategyDict)
 	{
 		LOG_DEBUG << __FUNCTION__;
-		auto& pt = parameters->get_child("strategies");
+		const auto& pt = parameters->get_child("strategies");
 		for(auto i : pt)
 		{
 			std::string instanceName;
@@ -584,11 +585,20 @@ public:
 			{
 				p = it->second;
 			}
-			auto pp = i.second.get_child("parameters");
-			p->setParameter(std::move(pp));
+			const auto& pp = i.second.get_child("parameters");
+			p->setParameter(&pp);
 		}
 	}
 
+	void saveConfiguration(const std::string& filePath, const std::map<std::string, StrategyPtr>& strategyDict)
+	{
+		LOG_DEBUG << __FUNCTION__;
+		std::ofstream f(filePath);
+		if(f.is_open())
+		{
+			boost::property_tree::json_parser::write_json(f, *parameters);
+		}
+	}
 };
 
 

@@ -62,6 +62,7 @@ public:
 	OrderID sendOrder(std::string const& vtSymbol, int orderType, double price, int volume, StrategyPtr strategy)
 	{
 		LOG_DEBUG << __FUNCTION__;
+		return OrderID();
 	}
 
 	void cancelOrder(OrderID const& vOrderID)
@@ -72,6 +73,7 @@ public:
 	OrderID sendStopOrder(std::string const& vtSymbol, int orderType, double price, int volume, StrategyPtr strategy)
 	{
 		LOG_DEBUG << __FUNCTION__;
+		return OrderID();
 	}
 
 	void cancelStopOrder(StopOrderID const& vOrderID)
@@ -373,29 +375,12 @@ public:
 	void saveSettings(const std::string& filePath)
 	{
 		LOG_DEBUG << __FUNCTION__;
-		boost::property_tree::ptree ptall;
-		for(auto i : m_strategyDict)
-		{
-			ptall.put_child(i.first, (i.second->parameters));
-		}
-		boost::property_tree::json_parser::write_json(filePath, ptall);
+		m_configManager.saveConfiguration(filePath, m_strategyDict);
 	}
 
 	void loadSettings(const std::string& filePath)
 	{
 		LOG_DEBUG << __FUNCTION__;
-		/*
-		boost::property_tree::ptree ptall;
-		boost::property_tree::json_parser::read_json(filePath, ptall);
-
-		for(auto i : m_strategyDict)
-		{
-			//the first level of the .json is the strategy name
-			//the second level is the parameters
-			auto& p = ptall.get_child(i.first);
-			i.second->setParameter(&p);
-		}
-		*/
 		m_configManager.loadConfiguration(filePath);
 		m_configManager.loadStrategies(*this, this->m_strategyDict);
 	}

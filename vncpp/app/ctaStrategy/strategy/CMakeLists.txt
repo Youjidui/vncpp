@@ -6,4 +6,6 @@ add_dependencies(ctaStrategy ctaEngine log vEvent vTrader )
 target_link_libraries( ctaStrategy ctaEngine log vEvent vTrader ${Boost_LIBRARIES} )
 
 install(TARGETS ctaStrategy DESTINATION ./strategy/)
-copy_target(ctaStrategy)
+
+copy_target_to(ctaStrategy ${PROJECT_BINARY_DIR}/strategy/)
+#copy_target_to(ctaStrategy ${PROJECT_BINARY_DIR})

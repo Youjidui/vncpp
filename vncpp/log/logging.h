@@ -15,3 +15,12 @@
 #define __FUNCTION__ __PRETTY_FUNCTION__
 #endif
 
+#ifdef __GNUC__ 
+#define PRIVATE __attribute__((visibility("hidden")))
+#define PUBLIC __attribute__((visibility("default")))
+#else
+#define PRIVATE 
+#define PUBLIC_EXPORT __declspec(dllexpor) 
+#define PUBLIC_IMPORT __declspec(dllexport) 
+#endif 
+

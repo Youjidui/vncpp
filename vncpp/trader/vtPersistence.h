@@ -212,7 +212,9 @@ public:
 
 	//bool loadContracts(const std
 	bool saveContracts()
-	{}
+	{
+		return true;
+	}
 
 	ContractPtr getContract(const Symbol& s)
 	{
