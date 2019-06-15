@@ -16,7 +16,8 @@ aux_source_directory(. ct_src)
 add_executable(ctaTrading ${ct_src})
 add_dependencies(ctaTrading ctaEngine vTrader vEvent log )
 #target_link_libraries(ctaTrading vTrader vEvent log ${Boost_LIBRARIES})
-target_link_libraries(ctaTrading ctaEngine vCtp vTrader vEvent log 	Boost::log Boost::filesystem Boost::date_time)
+#target_link_libraries(ctaTrading ctaEngine vCtp vTrader vEvent log 	Boost::log Boost::filesystem Boost::thread Boost::system Boost::date_time pthread)
+target_link_libraries(ctaTrading ctaEngine vCtp vTrader vEvent log 	boost_log boost_filesystem boost_thread boost_system  boost_date_time pthread)
 
 install(TARGETS ctaTrading DESTINATION .)
 

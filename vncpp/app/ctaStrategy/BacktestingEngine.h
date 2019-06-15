@@ -264,6 +264,10 @@ public:
 public:
 
 
+	void onHistoryInitData(const Record& r)
+	{
+	}
+
 	void onHistoryData(const Record& r)
 	{
 	}
