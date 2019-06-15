@@ -21,6 +21,7 @@ double roundToPriceTick(double price, double priceTick)
 }
 
 
+
 class TradingResult
 {
     public:
@@ -195,6 +196,7 @@ protected:
     //std::shared_ptr<mongocxx::cursor> dbCursor;
     //std::shared_ptr<RpcClient> hasClient;
 	PersistenceEnginePtr m_pe;
+	HistoryDataEnginePtr m_history;
 
     std::vector<TickPtr> m_initTickData;
 	std::vector<BarPtr> m_initBarData;
@@ -259,20 +261,17 @@ public:
 	void setContractSize(double s) { contractSize = s; }
 	void setPriceTick(double pt) { priceTick = pt; }
 
-    public:
-    bool initHdsClient()
-    {
-		LOG_DEBUG << __FUNCTION__;
-        //auto reqAddress = "tcp://localhost:5555";
-        //auto subAddress = "tcp://localhost:7777";
-        //hdsClient = std::make_shared<RpcClient>(reqAddress, subAddress);
-        //hdsClient->start();
-		return true;
-    }
+public:
+
+
+	void onHistoryData(const Record& r)
+	{
+	}
 
     void loadHistoryData()
-    {/*
+    {
 		LOG_DEBUG << __FUNCTION__;
+		/*
         mongocxx::uri uri("mongodb://localhost:27017");
         auto dbClient = std::make_shared<mongocxx::client>(uri);
         auto collection = dbClient[dbName][symbol];
@@ -306,8 +305,10 @@ public:
                 
             }
         }
-
-
+		*/
+		m_history->loadHistoryData(dbName, symbol, dataStartDate, strategyStartDate, 
+				std::bind(&BacktestingEngine::onHistoryInitData, this, std::placeholders::_1));
+		/*
         if(hdsClient)
             initCursor = hdsClient->loadHistoryData(dbName, symbol, strategyStartDate, dataEndDate);
         else
@@ -338,8 +339,9 @@ public:
             }
             
         }
-
-*/
+		*/
+		m_history->loadHistoryData(dbName, symbol, strategyStartDate, dataEndDate, 
+				std::bind(&BacktestingEngine::onHistoryData, this, std::placeholders::_1));
     }
 
 

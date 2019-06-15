@@ -32,21 +32,43 @@ void Strategy::cancelAll()
 }
 
 
+
+
 void Strategy::insertTick(TickPtr tick)
 {
-	m_ctaEngine.insertData(tickDbName, vtSymbol, tick);
+	Record r;
+	//tick to r
+	m_ctaEngine.insertData(tickDbName, vtSymbol, r);
 }
 void Strategy::insertBar(BarPtr bar)
 {
-	m_ctaEngine.insertData(barDbName, vtSymbol, bar);
+	Record r;
+	r.push_back(_Timestamp::toString(bar->datetime));
+	m_ctaEngine.insertData(barDbName, vtSymbol, r);
 }
-std::vector<TickPtr> Strategy::loadTick(int days)
+
+void Strategy::onLoadTick(const Record& r)
 {
-	return m_ctaEngine.loadTick(tickDbName, vtSymbol, days);
+	auto t = std::make_shared<Tick>();
+	m_onTickCallback(t);
 }
-std::vector<BarPtr> Strategy::loadBar(int days)
+
+void Strategy::onLoadBar(const Record& r)
 {
-	return m_ctaEngine.loadBar(barDbName, vtSymbol, days);
+	auto b = std::make_shared<Bar>();
+	b->datetime = _Timestamp::fromString(r[0].c_str(), r[1].c_str());
+	m_onBarCallback(b);
+}
+
+void Strategy::loadTick(int days, Callback_onTick onTickCall)
+{
+	m_onTickCallback = onTickCall;
+	return m_ctaEngine.loadHistoryData(tickDbName, vtSymbol, days, std::bind(&Strategy::onLoadTick, this, std::placeholders::_1));
+}
+void Strategy::loadBar(int days, Callback_onBar onBarCall)
+{
+	m_onBarCallback = onBarCall;
+	return m_ctaEngine.loadHistoryData(barDbName, vtSymbol, days, std::bind(&Strategy::onLoadBar, this, std::placeholders::_1));
 }
 
 void Strategy::saveSyncData()

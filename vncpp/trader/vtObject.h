@@ -50,6 +50,34 @@ struct _Timestamp
 	_Timestamp(time_t tm)
 	: datetime(tm)
 	{}
+
+	inline 
+	static std::string toString(time_t datetime)
+	{
+		struct tm* tmi = localtime(&datetime);
+		char str[32];
+		strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", tmi);
+		return str;
+	}
+
+	inline 
+	static time_t fromString(const char* datetimestr)
+	{
+		struct tm tmi = {0};
+		sscanf(datetimestr, "%d%*c%d%*c%d %d%*c%d%*c%d", &tmi.tm_year, &tmi.tm_mon, &tmi.tm_mday, &tmi.tm_hour, &tmi.tm_min, &tmi.tm_sec);
+		time_t t = mktime(&tmi);
+		return t;
+	}
+
+	inline 
+	static time_t fromString(const char* datestr, const char* timestr)
+	{
+		struct tm tmi = {0};
+		sscanf(datestr, "%d%*c%d%*c%d", &tmi.tm_year, &tmi.tm_mon, &tmi.tm_mday); 
+		sscanf(timestr, "%d%*c%d%*c%d", &tmi.tm_hour, &tmi.tm_min, &tmi.tm_sec);
+		time_t t = mktime(&tmi);
+		return t;
+	}
 };
 
 typedef time_t date_t;

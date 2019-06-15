@@ -16,6 +16,7 @@
 #include <Windows.h>
 #endif
 #include "ctaBase.h"
+#include "vtPersistence.h"
 
 class CtaEngine;
 
@@ -106,8 +107,10 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 
     void insertTick(TickPtr tick);
     void insertBar(BarPtr bar);
-	std::vector<TickPtr> loadTick(int days);
-	std::vector<BarPtr> loadBar(int days);
+	typedef  std::function<void (TickPtr)> Callback_onTick;
+	void loadTick(int days, Callback_onTick onTick);
+	typedef  std::function<void (BarPtr)> Callback_onBar;
+	void loadBar(int days, Callback_onBar onBar);
 
     void saveSyncData();
 
@@ -117,6 +120,13 @@ class Strategy : public std::enable_shared_from_this<Strategy>
 
 	protected:
 	virtual void onSetParameters() {}
+	void onLoadTick(const Record& r);
+	void onLoadBar(const Record& r);
+
+	protected:
+	Callback_onBar m_onBarCallback;
+	Callback_onTick m_onTickCallback;
+
 };
 
 typedef Strategy CtaTemplate;

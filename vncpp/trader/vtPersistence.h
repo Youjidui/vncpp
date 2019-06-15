@@ -8,8 +8,11 @@
 //#include <mongocxx/client.hpp>
 //#include <mongocxx/stdx.hpp>
 //#include <mongocxx/uri.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include "logging.h"
 #include "vtObject.h"
-
+#include "eventEngine.h"
+#include "vtPersistenceContainerBase.h"
 
 
 /*
@@ -20,21 +23,19 @@ c++ --std=c++11 <input>.cpp
 */
 
 
-class PersistenceContainerBase
-{
-	public:
-	virtual ~PersistenceContainerBase(){}
-};
+//typedef std::map<std::string, std::string> Record;
+typedef std::vector<std::string> Record;
 
-typedef std::shared_ptr<PersistenceContainerBase> PersistenceContainerPtr;
 
 class PersistenceEngine
 {
-    //boost::property_tree::ptree* parameters;
 	std::string dbURI;
 	//std::shared_ptr<mongocxx::client> dbClient;
 	PersistenceContainerPtr dbClient;
 
+public:
+	//typedef std::function<void (TableBase::iterator )>
+	
 public:
 	//PersistenceEngine();
 
@@ -43,21 +44,18 @@ public:
 		dbURI = parameters.get("DB_URI", "mongodb://localhost:27017");
 	}
 
+	virtual PersistenceContainerPtr createPersistenceContainer(const std::string& dbURI);
+
 	void dbConnect()
 	{
 		if(!dbClient)
 		{
-			const std::string mongodb = "mongodb";
-			if(strncmp(mongodb.c_str(), dbURI.c_str(), mongodb.length()) == 0)
-			{
-				//dbClient = std::make_shared<mongocxx::client>(dbURI);
-			}
+			dbClient = createPersistenceContainer(dbURI);
 		}
+		dbClient->connect();
 	}
 
-    void dbInsert(const std::string& dbName, const std::string& collectionName,
-      //bsoncxx::document::value&& data)
-	  std::string&& json_str)
+    void dbInsert(const std::string& dbTablePath, const Record& data) 
     {
         if(dbClient)
         {
@@ -67,8 +65,22 @@ public:
         }
     }
 
-    void dbQuery(const std::string& dbName, const std::string& collectionName,
-		std::string&& queryCondition)
+	//resource name is like a file path, the level is separated by slash /
+	TablePtr dbQuery(const std::string& resourceName)
+    {
+        if(dbClient)
+        {
+			auto t = (*dbClient)[resourceName];
+			return t;
+        }
+		else
+		{
+			LOG_WARNING << __FUNCTION__ << ": no dbClient";
+		}
+		return TablePtr();
+    }
+
+	TableBase::iterator dbQuery(const std::string& resourceName, std::string&& where, std::string&& orderby)
       //bsoncxx::document::value&& data,
       //std::function<void (mongocxx::cursor&)> onQuery,
       //std::string&& sortKey, sortDirection = ASCENDING)
@@ -88,13 +100,17 @@ public:
                 auto cursor = collection.find(data).sort(sortKey, sortDirection);
                 onQuery(cursor)
             }*/
+			auto t = (*dbClient)[resourceName];
+			return t->begin();
         }
+		else
+		{
+			LOG_WARNING << __FUNCTION__ << ": no dbClient";
+		}
+		throw std::runtime_error("no dbClient");
     }
 
-    void dbUpdate(const std::string& dbName, const std::string& collectionName,
-    //bsoncxx::document::value&& data,
-	std::string&& json_str,
-    std::string&& filter, bool upsert = false)
+    void dbUpdate(const std::string& dbTablePath, const Record& data)
     {
         if(dbClient)
         {
@@ -102,10 +118,13 @@ public:
             //auto c = db[collectionName];
             //c.replace_one(filter, data, upsert);
         }
+		else
+		{
+			LOG_WARNING << __FUNCTION__ << ": no dbClient";
+		}
     }
 
-    void dbDelete(const std::string& dbName, const std::string& collectionName,
-    std::string&& filter)
+    void dbDelete(const std::string& dbTablePath, const Record& data) 
     {
         if(dbClient)
         {
@@ -113,6 +132,10 @@ public:
             //auto c = db[collectionName];
             //c.delete_one(filter);
         }
+		else
+		{
+			LOG_WARNING << __FUNCTION__ << ": no dbClient";
+		}
     }
 
     void dbLogging(Event e)
@@ -128,10 +151,49 @@ public:
         dbInsert(LOG_DB_NAME, todayDate, doc_value);
 		*/
     }
+
 };
 
 typedef std::shared_ptr<PersistenceEngine> PersistenceEnginePtr;
 
+
+class HistoryDataEngine
+{
+protected:
+	PersistenceEnginePtr m_pe;
+
+public:
+	HistoryDataEngine(PersistenceEnginePtr pe) : m_pe(pe) {}
+
+	void loadHistoryData(const std::string& dbName, const std::string& symbol, date_t startDate, date_t endDate, std::function<void (Record&)> onRecord)
+	{
+		if(m_pe)
+		{
+			auto t = m_pe->dbQuery(dbName);
+			for(auto i = t->begin(); i != t->end(); ++i)
+			{
+				auto si = t->columnIndex("symbol");
+				auto di = t->columnIndex("Datetime");
+				if((*i)[si] == symbol)
+				{
+					if(di > startDate && di < endDate)
+					{
+						onRecord(*i);
+					}
+				}
+			}
+			
+		}
+		else
+		{
+			LOG_WARNING << __FUNCTION__ << ": no PersistenceEngine";
+		}
+	}
+	
+	
+};
+
+typedef std::shared_ptr<HistoryDataEngine> HistoryDataEnginePtr;
 
 
 class DataEngine

@@ -2,6 +2,8 @@ PROJECT(vncpp)
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
+set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+
 set(Boost_DEBUG 1)
 find_package(Boost COMPONENTS date_time filesystem system log )
 if(Boost_FOUND)
@@ -28,8 +30,6 @@ include(cmake/copy_target.cmake)
 ADD_SUBDIRECTORY(vncpp)
 ADD_SUBDIRECTORY(examples)
 
-
-set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
 IF( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
   EXECUTE_PROCESS( COMMAND ${CMAKE_COMMAND} -E copy_if_different

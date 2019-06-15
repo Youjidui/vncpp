@@ -99,11 +99,12 @@ public:
 	virtual void onInit()
     {
 		LOG_DEBUG << __FUNCTION__;
-        auto initData = loadBar(initDays);
-        for(auto i : initData)
-        {
-            onBar(i);
-        }
+        //auto initData = loadBar(initDays);
+        //for(auto i : initData)
+        //{
+        //    onBar(i);
+        //}
+		loadBar(initDays, std::bind(&StrategyKingKeltner::onBar, this, std::placeholders::_1));
     }
 	virtual bool start()
     {

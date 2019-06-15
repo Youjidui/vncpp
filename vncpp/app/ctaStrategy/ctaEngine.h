@@ -12,7 +12,7 @@
 #include "logging.h"
 #include "eventEngine.h"
 #include "vtEngine.h"
-//#include "vtPersistence.h"
+#include "vtPersistence.h"
 #include "ctaTemplate.h"
 #include "vtApp.h"
 
@@ -31,6 +31,10 @@ protected:
 	MainEnginePtr mainEngine;
 	int engineType;
 	CtaStrategyConfigurationManager m_configManager;
+
+    PersistenceEnginePtr m_pe;
+    HistoryDataEnginePtr m_history;
+
 
 public:
 	std::map<Symbol, StopOrderPtr> m_workingStopOrderDict;
@@ -57,6 +61,22 @@ public:
 	{
 		return engineType;
 	}
+
+	//init HistoryDataServic client
+    bool initHdsClient(PersistenceEnginePtr p)
+    {
+		LOG_DEBUG << __FUNCTION__;
+        //auto reqAddress = "tcp://localhost:5555";
+        //auto subAddress = "tcp://localhost:7777";
+        //hdsClient = std::make_shared<RpcClient>(reqAddress, subAddress);
+        //hdsClient->start();
+		m_pe = p;
+		m_history = std::make_shared<HistoryDataEngine>(p);
+		return true;
+    }
+
+protected:
+
 
 public:
 	OrderID sendOrder(std::string const& vtSymbol, int orderType, double price, int volume, StrategyPtr strategy)
@@ -208,7 +228,7 @@ public:
 		}
 	}
 
-	public:
+public:
 
 	void registerEvent()
 	{
@@ -218,6 +238,10 @@ public:
 		m_ee->register_(EVENT_TRADE, std::bind(&CtaEngine::processTradeEvent, this, std::placeholders::_1));
 	}
 
+public:
+	//DB
+	//should be removed	
+	/*
 	void insertData(const std::string& dbName, const std::string& vtSymbol, BarPtr) 
 	{
 		LOG_DEBUG << __FUNCTION__;
@@ -239,7 +263,26 @@ public:
 		LOG_DEBUG << __FUNCTION__;
 		return std::vector<TickPtr>();
 	}
+	*/ 
 
+	void insertData(const std::string& dbName, const std::string vtSymbol, const Record& r) 
+	{
+		LOG_DEBUG << __FUNCTION__;
+		m_pe->dbInsert(dbName, r);
+	}
+
+	void loadHistoryData(const std::string& dbName, const std::string& vtSymbol, int days,
+		std::function<void (const Record&)> onRecord)
+	{
+		LOG_DEBUG << __FUNCTION__;
+
+		time_t now = time(NULL);
+		auto dateEndDate = now;		//now/(24 * 60 * 60);
+		auto strategyStartDate = now - (days * 24 * 60 * 60);
+		m_history->loadHistoryData(dbName, vtSymbol, strategyStartDate, dateEndDate, onRecord);
+	}
+
+	//should be removed
 	void writeCtaLog(std::string&& logContent)
 	{
 		LOG_DEBUG << __FUNCTION__;
