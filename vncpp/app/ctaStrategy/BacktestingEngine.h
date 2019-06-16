@@ -195,8 +195,9 @@ protected:
     //std::shared_ptr<mongocxx::client> dbClient;
     //std::shared_ptr<mongocxx::cursor> dbCursor;
     //std::shared_ptr<RpcClient> hasClient;
-	PersistenceEnginePtr m_pe;
-	HistoryDataEnginePtr m_history;
+	//move to base class CtaEngine
+	//PersistenceEnginePtr m_pe;
+	//HistoryDataEnginePtr m_history;
 
     std::vector<TickPtr> m_initTickData;
 	std::vector<BarPtr> m_initBarData;
