@@ -3,6 +3,11 @@ PROJECT(vncpp)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+SET(CMAKE_SKIP_BUILD_RPATH  TRUE)
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+SET(CMAKE_INSTALL_RPATH "./")
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+
 
 set(Boost_DEBUG ON)
 SET(BUILD_SHARED_LIBS ON)
@@ -27,6 +32,7 @@ add_definitions(-DBOOST_ALL_DYN_LINK)
 #endif()
 
 add_definitions(-pipe -ggdb -fPIC -Wall)
+add_definitions(-Wl,--as-needed)
 
 include(cmake/copy_target.cmake)
 
