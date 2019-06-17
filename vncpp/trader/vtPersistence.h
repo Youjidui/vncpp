@@ -41,18 +41,43 @@ public:
 
 	void setParameter(const boost::property_tree::ptree& parameters)
 	{
+		LOG_DEBUG << __PRETTY_FUNCTION__;
 		dbURI = parameters.get("DB_URI", "mongodb://localhost:27017");
+		LOG_INFO << "DB_URI = " << dbURI;
+	}
+	void setParameter(const std::string& strURI)
+	{
+		LOG_DEBUG << __PRETTY_FUNCTION__;
+		dbURI = strURI;
+		LOG_INFO << "DB_URI = " << dbURI;
 	}
 
 	virtual PersistenceContainerPtr createPersistenceContainer(const std::string& dbURI);
 
-	void dbConnect()
+	bool dbConnect()
 	{
+		LOG_DEBUG << __FUNCTION__;
+
+		if(dbURI.empty())
+		{
+			LOG_ERROR << "DB_URI is empty";
+			return false;
+		}
+
 		if(!dbClient)
 		{
+			LOG_INFO << "DB_URI = " << dbURI;
 			dbClient = createPersistenceContainer(dbURI);
 		}
-		dbClient->connect();
+		if(dbClient)
+		{
+		 	return dbClient->connect();
+		}
+		else
+		{
+			LOG_ERROR << "createPersistenceContainer failed";
+			return false;
+		}
 	}
 
     void dbInsert(const std::string& dbTablePath, const Record& data) 
@@ -68,6 +93,7 @@ public:
 	//resource name is like a file path, the level is separated by slash /
 	TablePtr dbQuery(const std::string& resourceName)
     {
+		LOG_DEBUG << __PRETTY_FUNCTION__;
         if(dbClient)
         {
 			auto t = (*dbClient)[resourceName];
@@ -156,6 +182,8 @@ public:
 
 typedef std::shared_ptr<PersistenceEngine> PersistenceEnginePtr;
 
+extern PersistenceEnginePtr persistenceEngine();
+
 
 class HistoryDataEngine
 {
@@ -167,6 +195,7 @@ public:
 
 	void loadHistoryData(const std::string& dbName, const std::string& symbol, date_t startDate, date_t endDate, std::function<void (Record&)> onRecord)
 	{
+		LOG_DEBUG << __PRETTY_FUNCTION__;
 		if(m_pe)
 		{
 			auto t = m_pe->dbQuery(dbName);
@@ -212,11 +241,13 @@ public:
     DataEngine(EventEnginePtr ee)
     : m_ee(ee)
     {
+		LOG_DEBUG << __PRETTY_FUNCTION__;
 
     }
 
     void init(const std::string& contractFilePath)
     {
+		LOG_DEBUG << __PRETTY_FUNCTION__;
         //loadContracts(contractFilePath);
         registerEvent();
     }

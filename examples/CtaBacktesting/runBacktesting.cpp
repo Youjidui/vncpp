@@ -10,7 +10,7 @@
 //#include "ctp/ctpGateway.h"
 #include "BacktestingEngine.h"
 
-const std::string MINUTE_DB_NAME = "MINUTE_DB_NAME";
+const std::string MINUTE_DB_NAME = "IF0000_1min.csv";
 
 const std::string config = 
 "{\n"
@@ -49,6 +49,10 @@ int main(int argc, char* argv[])
     auto engine = std::make_shared<BacktestingEngine>(ee, me);
 	me->addApp(engine);
 
+	auto pe = persistenceEngine();
+	pe->setParameter("file:///mnt/c/Source/vncpp/examples/CtaBacktesting/fileDB/");
+	pe->dbConnect();
+	engine->initHdsClient(pe);
     engine->setBacktestingMode(BacktestingEngine::BAR_MODE);
 	const std::string dt("20120101");
     //auto t = time_from_iso_string(dt);

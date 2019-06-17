@@ -71,6 +71,7 @@ public:
         //hdsClient = std::make_shared<RpcClient>(reqAddress, subAddress);
         //hdsClient->start();
 		m_pe = p;
+		//m_pe->dbConnect();
 		m_history = std::make_shared<HistoryDataEngine>(p);
 		return true;
     }
