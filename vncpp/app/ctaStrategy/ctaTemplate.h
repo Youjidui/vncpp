@@ -568,11 +568,21 @@ public:
 			parameters = std::make_shared<boost::property_tree::ptree>();
 			boost::property_tree::json_parser::read_json(f, *parameters);
 		}
+		else
+		{
+			LOG_ERROR << "cannot open file: " << configFilePath << " for reading configuration";
+		}
 	}
 
 	void loadStrategies(CtaEngine& engine, std::map<StrategyInstanceName, StrategyPtr>& strategyDict)
 	{
 		LOG_DEBUG << __FUNCTION__;
+		if(!parameters)
+		{
+			LOG_ERROR << "no parameter found! Cannot continue to load strategies.";
+			return;
+		}
+
 		const auto& pt = parameters->get_child("strategies");
 		for(auto i : pt)
 		{
@@ -607,6 +617,10 @@ public:
 		if(f.is_open())
 		{
 			boost::property_tree::json_parser::write_json(f, *parameters);
+		}
+		else
+		{
+			LOG_ERROR << "cannot open file: " << filePath << " for saving configuration";
 		}
 	}
 };

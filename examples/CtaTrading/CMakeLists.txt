@@ -7,7 +7,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/data)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/event)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/trader)
 
-
 #find_package(Boost COMPONENTS date_time filesystem system log )
 #message(STATUS " *** find the following boost libraries: ${Boost_LIBRARIES} ***")
 

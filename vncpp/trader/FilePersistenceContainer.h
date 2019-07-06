@@ -36,7 +36,7 @@ public:
 protected:
 	virtual Record* next()
 	{
-		LOG_DEBUG << __PRETTY_FUNCTION__;
+		//LOG_DEBUG << __PRETTY_FUNCTION__;
 		std::string line;
 		std::getline(stream, line);
 		boost::algorithm::split(m_cursor, line, boost::algorithm::is_any_of(","));

@@ -1,7 +1,17 @@
+if(WIN32)
+else(WIN32)
+set(CTP_DIR ${PROJECT_SOURCE_DIR}/3rd/ctpapi/x64_linux/)
+message("${CTP_DIR}")
+INCLUDE_DIRECTORIES(${CTP_DIR})
+LINK_DIRECTORIES(${CTP_DIR})
+set(ctpmd thostmduserapi)
+set(ctptd thosttraderapi)
+endif(WIN32)
+
 AUX_SOURCE_DIRECTORY(. SRC)
 ADD_LIBRARY(vCtp SHARED ${SRC})
 add_dependencies(vCtp vEvent log vTrader )
-target_link_libraries(vCtp vEvent log vTrader ${Boost_LIBRARIES})
+target_link_libraries(vCtp vEvent log vTrader ${Boost_LIBRARIES} ${ctpmd} ${ctptd})
 
 install(TARGETS vCtp DESTINATION .)
 copy_target(vCtp)
