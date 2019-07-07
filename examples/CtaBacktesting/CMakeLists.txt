@@ -6,9 +6,15 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/gateway/ctp)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/data)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/event)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/vncpp/trader)
+#why need CTP_DIR????
+if(WIN32)
+else(WIN32)
+set(CTP_DIR ${PROJECT_SOURCE_DIR}/3rd/ctpapi/x64_linux/)
+message("${CTP_DIR}")
+INCLUDE_DIRECTORIES(${CTP_DIR})
+LINK_DIRECTORIES(${CTP_DIR})
+endif(WIN32)
 
-
-#message(STATUS " *** find the following boost libraries: ${Boost_LIBRARIES} ***")
 
 aux_source_directory(. src)
 

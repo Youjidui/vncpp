@@ -134,7 +134,7 @@ public:
 		}
 		m_api->SubscribeMarketData(ppInstrumentID, m_subscribedSymbols.size());
 
-		for(int i = 0; i < m_subscribedSymbols.size(); ++i)
+		for(unsigned int i = 0; i < m_subscribedSymbols.size(); ++i)
 			delete[] ppInstrumentID[i];
 		delete[] ppInstrumentID;
 	}
@@ -396,8 +396,8 @@ class CtpGateway : public Gateway
 	CtpGateway(const std::string& aInstanceName, EventEngine& ee)
 		: Gateway(aInstanceName, ee)
 		  , m_parameters(NULL)
-		  , m_mdHandler(ee)
-		  , m_tdHandler(ee)
+		  , m_mdHandler(*this)
+		  , m_tdHandler(*this)
 		  , m_mdReady(false)
 		  , m_tdReady(false)
 	{
