@@ -119,6 +119,7 @@ public:
 	virtual void OnFrontDisconnected(int nReason)
 	{
 		//event not ready, disconneced
+		LOG_ERROR << __FUNCTION__ << ':' << nReason;
 	}
 	virtual void OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 	{
@@ -138,15 +139,45 @@ public:
 			delete[] ppInstrumentID[i];
 		delete[] ppInstrumentID;
 	}
-	virtual void OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};
+	virtual void OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if(pUserLogout)
+		{
+			LOG_DEBUG << __FUNCTION__ << ':' << pUserLogout->BrokerID << '\t' << pUserLogout->UserID; 
+		}
+		if(pRspInfo)
+		{
+			LOG_DEBUG  << __FUNCTION__ <<'[' << nRequestID << ']' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
+
+	}
 	virtual void OnRspError(CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 	{
 		//event error
+		LOG_ERROR << __FUNCTION__ <<'[' << nRequestID << ']' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
 	}
 	virtual void OnRspSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
 	{
+		if(pSpecificInstrument)
+		{
+			LOG_DEBUG << __FUNCTION__ << ':' << pSpecificInstrument->InstrumentID; 
+		}
+		if(pRspInfo)
+		{
+			LOG_DEBUG  << __FUNCTION__ <<'[' << nRequestID << ']' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
 	}
-	virtual void OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {};
+	virtual void OnRspUnSubMarketData(CThostFtdcSpecificInstrumentField *pSpecificInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if(pSpecificInstrument)
+		{
+			LOG_DEBUG << __FUNCTION__ << ':' << pSpecificInstrument->InstrumentID; 
+		}
+		if(pRspInfo)
+		{
+			LOG_DEBUG  << __FUNCTION__ <<'[' << nRequestID << ']' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
+	}
 	virtual void OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *p)
 	{
 		auto t = std::make_shared<Tick>();
@@ -177,12 +208,16 @@ private:
 	std::string m_password;
 	std::string m_appID;
 	std::string m_authCode;
+	unsigned m_frontID;
+	unsigned m_sessionID;
 
 public:
 	TradingEventHandler(Gateway& base)
 		: m_base(base)
 		, m_api(NULL)
 		, m_requestID(0)
+		, m_frontID(0)
+		, m_sessionID(0)
 	{
 	}
 	~TradingEventHandler()
@@ -217,6 +252,9 @@ public:
 				else
 					LOG_ERROR << "connectionString is empty";
 				m_api->RegisterSpi(this);
+				THOST_TE_RESUME_TYPE rtype = THOST_TERT_RESUME;
+				m_api->SubscribePublicTopic(rtype);
+				m_api->SubscribePrivateTopic(rtype);
 				m_api->Init();
 				return true;
 			}
@@ -238,22 +276,90 @@ public:
 	}
 
 public:
-	virtual void OnFrontConnected(){}
-	virtual void OnFrontDisconnected(int nReason){}
+	virtual void OnFrontConnected()
+	{
+		if(!m_appID.empty())
+		{
+		CThostFtdcReqAuthenticateField req;
+		memset(&req, 0, sizeof(req));
+		strcpy(req.BrokerID, m_brokerID.c_str());
+		strcpy(req.UserID, m_userID.c_str());
+#if 0
+		strcpy(req.UserProductInfo, "VNCPP");
+		strcpy(req.AppID, m_appID.c_str());
+#else
+		strcpy(req.UserProductInfo, m_appID.c_str());
+#endif
+		strcpy(req.AuthCode, m_authCode.c_str());
+
+		m_api->ReqAuthenticate(&req, ++m_requestID);
+		}
+		else
+		{
+		CThostFtdcReqUserLoginField req;
+		memset(&req, 0, sizeof(req));
+		strcpy(req.BrokerID, m_brokerID.c_str());
+		strcpy(req.UserID, m_userID.c_str());
+		strcpy(req.Password, m_password.c_str());
+		strcpy(req.UserProductInfo, "VNCPP");
+		m_api->ReqUserLogin(&req, ++m_requestID);
+		}
+	}
+	virtual void OnFrontDisconnected(int nReason)
+	{
+		LOG_ERROR << __FUNCTION__ << ':' << nReason;
+	}
 		
 	///心跳超时警告。当长时间未收到报文时，该方法被调用。
 	///@param nTimeLapse 距离上次接收报文的时间
-	virtual void OnHeartBeatWarning(int nTimeLapse){}
+	virtual void OnHeartBeatWarning(int nTimeLapse)
+	{
+		LOG_ERROR << __FUNCTION__ << ':' << nTimeLapse;
+	}
 	
 	///客户端认证响应
-	virtual void OnRspAuthenticate(CThostFtdcRspAuthenticateField *pRspAuthenticateField, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspAuthenticate(CThostFtdcRspAuthenticateField *pRspAuthenticateField, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if(pRspInfo && pRspInfo->ErrorID != 0)
+		{
+			LOG_ERROR << __FUNCTION__ << ':' << pRspAuthenticateField->UserProductInfo << '\t' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
+		else 
+		{
+		CThostFtdcReqUserLoginField req;
+		memset(&req, 0, sizeof(req));
+		strcpy(req.BrokerID, m_brokerID.c_str());
+		strcpy(req.UserID, m_userID.c_str());
+		strcpy(req.Password, m_password.c_str());
+		strcpy(req.UserProductInfo, "VNCPP");
+		m_api->ReqUserLogin(&req, ++m_requestID);
+		}
+	}
 	
 
 	///登录请求响应
-	virtual void OnRspUserLogin(CThostFtdcRspUserLoginField *pRspUserLogin, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspUserLogin(CThostFtdcRspUserLoginField *p, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if(pRspInfo && pRspInfo->ErrorID != 0)
+		{
+			LOG_ERROR << __FUNCTION__ << ':' << p->UserID << '\t' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
+		else 
+		{
+			LOG_INFO << __FUNCTION__ << ':' << p->TradingDay << ',' << p->LoginTime << ',' 
+				<< p->BrokerID << ',' << p->UserID << ',' << p->SystemName << ',' 
+				<< p->FrontID << ',' << p->SessionID << ',' << p->MaxOrderRef << ',' 
+				<< p->SHFETime << ',' << p->DCETime << ',' << p->CZCETime << ','
+				<< p->FFEXTime << ',' << p->INETime;
+			m_frontID = p->FrontID;
+			m_sessionID = p->SessionID;
+		}
+	}
 
 	///登出请求响应
-	virtual void OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspUserLogout(CThostFtdcUserLogoutField *pUserLogout, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+	}
 
 	///用户口令更新请求响应
 	virtual void OnRspUserPasswordUpdate(CThostFtdcUserPasswordUpdateField *pUserPasswordUpdate, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
