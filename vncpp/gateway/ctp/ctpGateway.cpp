@@ -4,14 +4,35 @@
 #include <time.h>
 #include <memory>
 #include <boost/property_tree/ptree.hpp>
+#include <boost/locale/encoding.hpp>
 #include "logging.h"
 #include "vtGateway.h"
+#include "vtObject.h"
 #include <ThostFtdcMdApi.h>
 #include <ThostFtdcTraderApi.h>
 
+#define CTP_GATEWAY "CTP Gateway"
+
+inline std::string tr_gbk_to_utf8(const std::string & str) {
+	return boost::locale::conv::between(str, "UTF-8", "GBK");
+}
+
+inline std::string tr_utf8_to_gbk(const std::string & str) {
+	return boost::locale::conv::between(str, "GBK", "UTF-8");
+}
+
+time_t datetimeFromString(const char* pdate8)
+{
+	struct tm dt = {0};
+	sscanf(pdate8, "%04u%02u%02u", &dt.tm_year, &dt.tm_mon, &dt.tm_mday);
+	dt.tm_year -= 1900;
+	dt.tm_mon --;
+	return mktime(&dt);
+}
+
 time_t datetimeFromString(const char* pdate8, const char* ptime8)
 {
-	struct tm dt;
+	struct tm dt = {0};
 	sscanf(pdate8, "%04u%02u%02u", &dt.tm_year, &dt.tm_mon, &dt.tm_mday);
 	dt.tm_year -= 1900;
 	dt.tm_mon --;
@@ -211,6 +232,9 @@ private:
 	unsigned m_frontID;
 	unsigned m_sessionID;
 
+	std::map<std::string, double> m_symbolSizeDict;
+	std::map<std::string, PositionPtr> m_posDict;
+
 public:
 	TradingEventHandler(Gateway& base)
 		: m_base(base)
@@ -353,6 +377,15 @@ public:
 				<< p->FFEXTime << ',' << p->INETime;
 			m_frontID = p->FrontID;
 			m_sessionID = p->SessionID;
+
+			//CThostFtdcQryExchangeField req;
+			//memset(&req, 0, sizeof(req));
+			//m_api->ReqQryExchange(&req, ++m_requestID);
+			
+			CThostFtdcQrySettlementInfoConfirmField req;
+			strcpy(req.BrokerID, m_brokerID.c_str());
+			strcpy(req.InvestorID, m_userID.c_str());
+			m_api->ReqQrySettlementInfoConfirm(&req, ++m_requestID);
 		}
 	}
 
@@ -383,7 +416,19 @@ public:
 	virtual void OnRspQueryMaxOrderVolume(CThostFtdcQueryMaxOrderVolumeField *pQueryMaxOrderVolume, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
 
 	///投资者结算结果确认响应
-	virtual void OnRspSettlementInfoConfirm(CThostFtdcSettlementInfoConfirmField *pSettlementInfoConfirm, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspSettlementInfoConfirm(CThostFtdcSettlementInfoConfirmField *pSettlementInfoConfirm, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if(pRspInfo)
+		{
+			LOG_WARNING << __FUNCTION__ << ':' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
+		if(bIsLast)
+		{
+			CThostFtdcQryInstrumentField req;
+			memset(&req, 0, sizeof(req));
+			m_api->ReqQryInstrument(&req, ++m_requestID);
+		}
+	}
 
 	///删除预埋单响应
 	virtual void OnRspRemoveParkedOrder(CThostFtdcRemoveParkedOrderField *pRemoveParkedOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
@@ -398,10 +443,94 @@ public:
 	virtual void OnRspQryTrade(CThostFtdcTradeField *pTrade, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
 
 	///请求查询投资者持仓响应
-	virtual void OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspQryInvestorPosition(CThostFtdcInvestorPositionField *pInvestorPosition, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if(pRspInfo)
+		{
+			LOG_WARNING << __FUNCTION__ << ':' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
+		if(pInvestorPosition)
+		{
+			std::string posName = pInvestorPosition->InstrumentID;
+			posName += (DIRECTION_LONG == pInvestorPosition->PosiDirection ? 'B' : 'S');
+			PositionPtr p;
+			auto i = m_posDict.find(posName);
+			if(i != m_posDict.end())
+				p = i->second;
+			else
+			{
+				p = std::make_shared<Position>();
+				p->gatewayName = CTP_GATEWAY;
+				p->symbol = pInvestorPosition->InstrumentID;
+				p->vtSymbol = p->make_vtSymbol(pInvestorPosition->InstrumentID, pInvestorPosition->ExchangeID);
+				p->direction = pInvestorPosition->PosiDirection;
+				p->vtPositionName = posName;
+				p->avgPrice = 0;
+				p->position = 0;
+				p->profit = 0;
+				p->forzen = 0;
+				m_posDict.insert(std::make_pair(posName, p));
+			}
+
+			if(strcmp(pInvestorPosition->ExchangeID, "SHFE") == 0)
+			{
+				if(pInvestorPosition->YdPosition != 0 && pInvestorPosition->TodayPosition == 0)
+					p->yesterdayPosition = pInvestorPosition->Position;
+			}
+			else
+			{
+				p->yesterdayPosition = pInvestorPosition->Position - pInvestorPosition->TodayPosition;
+			}
+
+			double size = 1;
+			auto it = m_symbolSizeDict.find(p->symbol);
+			if(it != m_symbolSizeDict.end())
+			{
+				size = it->second;
+			}
+			auto cost = p->avgPrice * p->position * size;
+
+			p->position += pInvestorPosition->Position;
+			p->profit += pInvestorPosition->PositionProfit;
+			
+			if(p->position != 0)
+			{
+				p->avgPrice = (cost + pInvestorPosition->PositionCost) / (p->position * size);
+			}
+
+			p->forzen += ((p->direction == DIRECTION_LONG) ? pInvestorPosition->LongFrozen : pInvestorPosition->ShortFrozen);
+
+			if(bIsLast)
+			{
+				for(auto i : m_posDict)
+				{
+					m_base.onPosition(i.second);
+				}
+				m_posDict.clear();
+			}
+		}
+	}
 
 	///请求查询资金账户响应
-	virtual void OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradingAccount, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspQryTradingAccount(CThostFtdcTradingAccountField *pTradingAccount, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		auto p = std::make_shared<Account>();
+		//p->gatewayName = CTP_GATEWAY;
+		p->account = pTradingAccount->AccountID;
+		p->vtAccount = std::string(CTP_GATEWAY) + '/' + p->account;
+		p->previousBalance = pTradingAccount->PreBalance;
+		p->available = pTradingAccount->Available;
+		p->commission = pTradingAccount->Commission;
+		p->margin = pTradingAccount->CurrMargin;
+		p->closeProfit = pTradingAccount->CloseProfit;
+		p->positionProfit = pTradingAccount->PositionProfit;
+		p->balance = pTradingAccount->PreBalance - pTradingAccount->PreCredit - pTradingAccount->PreMortgage
+			+ pTradingAccount->Mortgage - pTradingAccount->Withdraw + pTradingAccount->Deposit
+			+ pTradingAccount->CloseProfit + pTradingAccount->PositionProfit + pTradingAccount->CashIn
+			- pTradingAccount->Commission;
+
+		m_base.onAccount(p);
+	}
 
 	///请求查询投资者响应
 	virtual void OnRspQryInvestor(CThostFtdcInvestorField *pInvestor, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
@@ -416,13 +545,84 @@ public:
 	virtual void OnRspQryInstrumentCommissionRate(CThostFtdcInstrumentCommissionRateField *pInstrumentCommissionRate, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
 
 	///请求查询交易所响应
-	virtual void OnRspQryExchange(CThostFtdcExchangeField *pExchange, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspQryExchange(CThostFtdcExchangeField *pExchange, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if(pRspInfo)
+		{
+			LOG_WARNING << __FUNCTION__ << ':' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
+		if(pExchange)
+		{
+			LOG_INFO << pExchange->ExchangeID << '\t' << pExchange->ExchangeName << '\t' << pExchange->ExchangeProperty; 
+			CThostFtdcQryProductField req;
+			memset(&req, 0, sizeof(req));
+			strcpy(req.ExchangeID, pExchange->ExchangeID);
+			m_api->ReqQryProduct(&req, ++m_requestID);
+		}
+		if(bIsLast)
+		{
+			LOG_DEBUG << __FUNCTION__ << " complete";
+		}
+	}
 
 	///请求查询产品响应
-	virtual void OnRspQryProduct(CThostFtdcProductField *pProduct, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspQryProduct(CThostFtdcProductField *pProduct, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if(pRspInfo)
+		{
+			LOG_WARNING << __FUNCTION__ << ':' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
+		if(pProduct)
+		{
+			LOG_INFO << pProduct->ExchangeID << '\t' << pProduct->ProductID << '\t' << pProduct->ProductName << '\t' << pProduct->ProductClass
+				<< '\t' << pProduct->VolumeMultiple << '\t' << pProduct->PriceTick << '\t' << pProduct->TradeCurrencyID
+				<< '\t' << pProduct->ExchangeProductID << '\t' << pProduct->UnderlyingMultiple;
+
+			CThostFtdcQryInstrumentField req;
+			memset(&req, 0, sizeof(req));
+			strcpy(req.ExchangeID, pProduct->ExchangeID);
+			strcpy(req.ProductID, pProduct->ProductID);
+			m_api->ReqQryInstrument(&req, ++m_requestID);
+		}
+		if(bIsLast)
+		{
+			LOG_DEBUG << __FUNCTION__ << '\t' << (pProduct  ? pProduct->ExchangeID : "")  << " complete";
+		}
+	}
 
 	///请求查询合约响应
-	virtual void OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspQryInstrument(CThostFtdcInstrumentField *pInstrument, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if(pRspInfo)
+		{
+			LOG_WARNING << __FUNCTION__ << ':' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+		}
+		if(pInstrument)
+		{
+			auto p = std::make_shared<Contract>();
+			p->symbol = pInstrument->InstrumentID;
+			p->exchange = pInstrument->ExchangeID;
+			p->vtSymbol = _Contract::make_vtSymbol(p->symbol, p->exchange);
+			p->gatewayName = CTP_GATEWAY;
+			//p->name = pInstrument->InstrumentName;
+			p->name = tr_gbk_to_utf8(pInstrument->InstrumentName);
+			p->contractSize = pInstrument->VolumeMultiple;
+			p->priceTick = pInstrument->PriceTick;
+			p->strikePrice = pInstrument->StrikePrice;
+			p->productClass = pInstrument->StrikePrice;
+			p->expiryDate = datetimeFromString(pInstrument->ExpireDate);
+			p->underlyingSymbol = pInstrument->UnderlyingInstrID;
+			p->optionType = pInstrument->OptionsType;
+
+			m_symbolSizeDict[p->symbol] = p->contractSize;
+			m_base.onContract(p);
+		}
+		if(bIsLast)
+		{
+			LOG_DEBUG << __FUNCTION__ << '\t' << (pInstrument  ? pInstrument->ExchangeID : "") 
+				<< '\t' << (pInstrument  ? pInstrument->ProductID : "")  << " complete";
+		}
+	}
 
 	///请求查询行情响应
 	virtual void OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMarketData, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
@@ -496,7 +696,7 @@ class CtpGateway : public Gateway
 	public:
 	virtual const std::string getClassName()
 	{
-		return "CTP Gateway";
+		return CTP_GATEWAY;
 	}
 
 	CtpGateway(const std::string& aInstanceName, EventEngine& ee)
