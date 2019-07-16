@@ -235,6 +235,8 @@ private:
 	std::map<std::string, double> m_symbolSizeDict;
 	std::map<std::string, PositionPtr> m_posDict;
 
+	std::map<std::string, std::string> m_orderIdMap;	//from OrderSysID to OrderRef, from orderID to vtOrderID
+
 public:
 	TradingEventHandler(Gateway& base)
 		: m_base(base)
@@ -401,16 +403,42 @@ public:
 	virtual void OnRspTradingAccountPasswordUpdate(CThostFtdcTradingAccountPasswordUpdateField *pTradingAccountPasswordUpdate, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
 
 	///报单录入请求响应
-	virtual void OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		auto p = std::make_shared<Order>();
+		p->gatewayName = CTP_GATEWAY;
+		p->symbol = pInputOrder->InstrumentID;
+		p->exchange = pInputOrder->ExchangeID;
+		p->vtSymbol = _Contract::make_vtSymbol(p->symbol, p->exchange);
+		char buffer[128];
+		snprintf(buffer, sizeof(buffer), "%s-%x-%x-%s", CTP_GATEWAY, m_frontID, m_sessionID, pInputOrder->OrderRef);
+		p->vtOrderID = buffer;
+		p->direction = pInputOrder->Direction;
+		p->offset = pInputOrder->CombOffsetFlag[0];
+		p->status = STATUS_REJECTED;
+		p->price = pInputOrder->LimitPrice;
+		p->totalVolume = pInputOrder->VolumeTotalOriginal;
+		p->datetime = time(NULL);
+		m_base.onOrder(p);
+
+		LOG_ERROR << __FUNCTION__ << '\t' << p->vtSymbol << '\t' << p->vtOrderID << '\t' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+	}
+
+	///报单操作请求响应
+	virtual void OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		std::string vtSymbol = _Contract::make_vtSymbol(pInputOrderAction->InstrumentID, pInputOrderAction->ExchangeID);
+		char vtOrderID[128];
+		snprintf(vtOrderID, sizeof(vtOrderID), "%s-%x-%x-%s", CTP_GATEWAY, m_frontID, m_sessionID, pInputOrderAction->OrderRef);
+		
+		LOG_ERROR << __FUNCTION__ << '\t' << vtSymbol << '\t' << vtOrderID << '\t' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+	}
 
 	///预埋单录入请求响应
 	virtual void OnRspParkedOrderInsert(CThostFtdcParkedOrderField *pParkedOrder, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
 
 	///预埋撤单录入请求响应
 	virtual void OnRspParkedOrderAction(CThostFtdcParkedOrderActionField *pParkedOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
-
-	///报单操作请求响应
-	virtual void OnRspOrderAction(CThostFtdcInputOrderActionField *pInputOrderAction, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
 
 	///查询最大报单数量响应
 	virtual void OnRspQueryMaxOrderVolume(CThostFtdcQueryMaxOrderVolumeField *pQueryMaxOrderVolume, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
@@ -665,19 +693,89 @@ public:
 
 
 	///错误应答
-	virtual void OnRspError(CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) {}
+	virtual void OnRspError(CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast)
+	{
+		LOG_ERROR << __FUNCTION__ << '\t' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+	}
 
 	///报单通知
-	virtual void OnRtnOrder(CThostFtdcOrderField *pOrder) {}
+	virtual void OnRtnOrder(CThostFtdcOrderField *pOrder)
+	{
+		auto p = std::make_shared<Order>();
+		p->gatewayName = CTP_GATEWAY;
+		p->symbol = pOrder->InstrumentID;
+		p->exchange = pOrder->ExchangeID;
+		p->vtSymbol = _Contract::make_vtSymbol(p->symbol, p->exchange);
+		char buffer[128];
+		snprintf(buffer, sizeof(buffer), "%s-%x-%x-%s", CTP_GATEWAY, pOrder->FrontID, pOrder->SessionID, pOrder->OrderRef);
+		p->orderID = pOrder->OrderSysID;
+		p->vtOrderID = buffer;
+		m_orderIdMap[p->orderID] = p->vtOrderID;
+		p->direction = pOrder->Direction;
+		p->offset = pOrder->CombOffsetFlag[0];
+		p->status = pOrder->OrderStatus;
+		p->price = pOrder->LimitPrice;
+		p->totalVolume = pOrder->VolumeTotalOriginal;
+		p->tradedVolume = pOrder->VolumeTraded;
+		p->datetime = time(NULL);
+		m_base.onOrder(p);
+	}
 
 	///成交通知
-	virtual void OnRtnTrade(CThostFtdcTradeField *pTrade) {}
+	virtual void OnRtnTrade(CThostFtdcTradeField *pTrade)
+	{
+		auto p = std::make_shared<Trade>();
+		p->gatewayName = CTP_GATEWAY;
+		p->symbol = pTrade->InstrumentID;
+		p->exchange = pTrade->ExchangeID;
+		p->vtSymbol = _Contract::make_vtSymbol(p->symbol, p->exchange);
+		//char buffer[128];
+		//snprintf(buffer, sizeof(buffer), "%s-%x-%x-%s", CTP_GATEWAY, pOrder->FrontID, pOrder->SessionID, pOrder->OrderRef);
+		//p->vtOrderID = buffer;
+		p->orderID = pTrade->OrderSysID;
+		p->vtOrderID = m_orderIdMap[p->orderID];
+		p->tradeID = pTrade->TradeID;
+		p->vtTradeID = p->gatewayName + p->tradeID;
+		p->direction = pTrade->Direction;
+		p->offset = pTrade->OffsetFlag;
+		p->price = pTrade->Price;
+		p->volume = pTrade->Volume;
+		p->datetime = datetimeFromString(pTrade->TradeDate, pTrade->TradeTime);
+
+		m_base.onTrade(p);
+	}
 
 	///报单录入错误回报
-	virtual void OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo) {}
+	virtual void OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo)
+	{
+		auto p = std::make_shared<Order>();
+		p->gatewayName = CTP_GATEWAY;
+		p->symbol = pInputOrder->InstrumentID;
+		p->exchange = pInputOrder->ExchangeID;
+		p->vtSymbol = _Contract::make_vtSymbol(p->symbol, p->exchange);
+		char buffer[128];
+		snprintf(buffer, sizeof(buffer), "%s-%x-%x-%s", CTP_GATEWAY, m_frontID, m_sessionID, pInputOrder->OrderRef);
+		p->vtOrderID = buffer;
+		p->direction = pInputOrder->Direction;
+		p->offset = pInputOrder->CombOffsetFlag[0];
+		p->status = STATUS_REJECTED;
+		p->price = pInputOrder->LimitPrice;
+		p->totalVolume = pInputOrder->VolumeTotalOriginal;
+		p->datetime = time(NULL);
+		m_base.onOrder(p);
+
+		LOG_ERROR << __FUNCTION__ << '\t' << p->vtSymbol << '\t' << p->vtOrderID << '\t' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+	}
 
 	///报单操作错误回报
-	virtual void OnErrRtnOrderAction(CThostFtdcOrderActionField *pOrderAction, CThostFtdcRspInfoField *pRspInfo) {}
+	virtual void OnErrRtnOrderAction(CThostFtdcOrderActionField *pOrderAction, CThostFtdcRspInfoField *pRspInfo)
+	{
+		std::string vtSymbol = _Contract::make_vtSymbol(pOrderAction->InstrumentID, pOrderAction->ExchangeID);
+		char vtOrderID[128];
+		snprintf(vtOrderID, sizeof(vtOrderID), "%s-%x-%x-%s", CTP_GATEWAY, m_frontID, m_sessionID, pOrderAction->OrderRef);
+		
+		LOG_ERROR << __FUNCTION__ << '\t' << vtSymbol << '\t' << vtOrderID << '\t' << pRspInfo->ErrorID << '\t' << pRspInfo->ErrorMsg;
+	}
 
 	///合约交易状态通知
 	virtual void OnRtnInstrumentStatus(CThostFtdcInstrumentStatusField *pInstrumentStatus) {}
