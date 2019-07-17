@@ -11,7 +11,7 @@ endif(WIN32)
 AUX_SOURCE_DIRECTORY(. CTP_SRC)
 ADD_LIBRARY(vCtp SHARED ${CTP_SRC})
 add_dependencies(vCtp vEvent log vTrader )
-target_link_libraries(vCtp vEvent log vTrader ${Boost_LIBRARIES} ${ctpmd} ${ctptd})
+target_link_libraries(vCtp vEvent log vTrader boost_locale ${Boost_LIBRARIES} ${ctpmd} ${ctptd})
 
 install(TARGETS vCtp DESTINATION .)
 install(FILES
